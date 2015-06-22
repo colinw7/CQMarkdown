@@ -1146,19 +1146,43 @@ replaceEmbeddedStyles(const QString &str) const
       if (i < len && str[i] == ']') {
         ++i;
 
-        QString str3;
+        QString str3, str4;
 
         if      (i < len && str[i] == '(') {
           ++i;
 
-          while (i < len && str[i] != ')')
+          while (i < len && str[i] != ')') {
+            if (str[i] == '\"')
+              break;
+
             str3 += str[i++];
+          }
+
+          if (i < len && str[i] == '\"') {
+            ++i;
+
+            while (i < len && str[i] != ')') {
+              if (str[i] == '\"')
+                break;
+
+              str4 += str[i++];
+            }
+          }
+
+          while (i < len && str[i] != ')')
+            ++i;
 
           if (i < len && str[i] == ')') {
             ++i;
 
+            str3 = str3.simplified();
+
             // TODO: title
-            str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+            if (str4 != "")
+              str1 += QString("<img src=\"%1\" title=\"%2\" alt=\"%3\"/>").
+                        arg(str3).arg(str4).arg(str2);
+            else
+              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
           }
           else {
             i = i1;

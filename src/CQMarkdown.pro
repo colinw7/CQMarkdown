@@ -17,6 +17,7 @@ SOURCES += \
 CMarkdown.cpp \
 CQMarkdown.cpp \
 CQMarkdownEdit.cpp \
+CQMarkdownMain.cpp \
 CQMarkdownPreview.cpp \
 main.cpp \
 
@@ -24,6 +25,7 @@ HEADERS += \
 CMarkdown.h \
 CQMarkdownEdit.h \
 CQMarkdown.h \
+CQMarkdownMain.h \
 CQMarkdownPreview.h \
 
 DESTDIR     = ../bin

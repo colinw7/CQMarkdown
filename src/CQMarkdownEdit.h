@@ -4,6 +4,7 @@
 #include <QTextEdit>
 
 class CQMarkdown;
+class QTimer;
 
 class CQMarkdownEdit : public QTextEdit {
   Q_OBJECT
@@ -13,8 +14,12 @@ class CQMarkdownEdit : public QTextEdit {
 
   QSize sizeHint() const;
 
+ private slots:
+  void updateSlot();
+
  private:
   CQMarkdown *markdown_;
+  QTimer     *timer_;
 };
 
 #endif

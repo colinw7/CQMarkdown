@@ -13,6 +13,7 @@ class CQMarkdown : public QSplitter {
   CQMarkdown(QWidget *parent=0);
 
   bool load(const QString &filename);
+  bool save();
 
   QString text() const;
 
@@ -20,6 +21,7 @@ class CQMarkdown : public QSplitter {
   void updatePreview();
 
  private:
+  QString            filename_;
   CQMarkdownEdit    *edit_;
   CQMarkdownPreview *preview_;
 };

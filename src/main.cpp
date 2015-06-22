@@ -1,4 +1,4 @@
-#include <CQMarkdown.h>
+#include <CQMarkdownMain.h>
 #include <CMarkdown.h>
 #include <QApplication>
 #include <iostream>
@@ -29,7 +29,7 @@ main(int argc, char **argv)
   }
 
   if (! html) {
-    CQMarkdown *markdown = new CQMarkdown;
+    CQMarkdownMain *markdown = new CQMarkdownMain;
 
     markdown->load(filename);
 
