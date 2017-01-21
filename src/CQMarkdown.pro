@@ -34,15 +34,17 @@ LIB_DIR     = ../lib
 
 INCLUDEPATH += \
 . \
+../../CQUtil/include \
 ../../CCommand/include \
 ../../CUtil/include \
 
 unix:LIBS += \
 -L$$LIB_DIR \
+-L../../CQUtil/lib \
 -L../../CCommand/lib \
 -L../../CReadLine/lib \
 -L../../CStrUtil/lib \
 -L../../CFile/lib \
 -L../../COS/lib \
--lCCommand -lCReadLine -lCFile -lCStrUtil -lCOS \
+-lCQUtil -lCCommand -lCReadLine -lCFile -lCStrUtil -lCOS \
 -lreadline -lcurses

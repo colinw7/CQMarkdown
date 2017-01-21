@@ -1,0 +1,17 @@
+foo
+baz
+
+foo 
+ baz
+
+foo
+  baz
+
+foo
+   baz
+
+foo
+    baz
+
+foo
+     baz

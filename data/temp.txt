@@ -1,0 +1,9 @@
+3.  Is a blank line needed before an indented code block?
+    (`Markdown.pl` requires it, but this is not mentioned in the
+    documentation, and some implementations do not require it.)
+
+    ``` markdown
+    paragraph
+        code?
+    ```
+

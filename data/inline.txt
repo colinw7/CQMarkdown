@@ -1,0 +1,5 @@
+*asterisk1* **asterisk2** ***asterisk3*** **asterisk*asterisk**
+
+_underscore1_ __underscore2__ ___underscore3___ __underscore_underscore__
+
+`quote1` ``quote2`` ```quote3``` ``quote`quote``

@@ -49,6 +49,8 @@ processText(const QString &str)
   while (readLine(line))
     rootBlock_->addLine(line);
 
+  rootBlock_->preProcess();
+
   return rootBlock_->process();
 }
 
@@ -56,14 +58,25 @@ void
 CMarkdown::
 addLink(const LinkRef &link)
 {
-  links_[link.ref] = link;
+  if (isDebug())
+    std::cerr << "DEBUG: Add Link: [" << link.ref.toStdString() << "]:" <<
+                 link.dest.toStdString() << " " <<
+                 "'" << link.title.toStdString() << "'" <<
+                 std::endl;
+
+  links_[link.ref.toLower()] = link;
 }
 
 bool
 CMarkdown::
 getLink(const QString &ref, LinkRef &link) const
 {
-  auto p = links_.find(ref);
+  if (isDebug())
+    std::cerr << "DEBUG: Get Link: " << ref.toStdString() << std::endl;
+
+  QString lref = ref.toLower();
+
+  auto p = links_.find(lref);
 
   if (p == links_.end())
     return false;
@@ -95,13 +108,13 @@ readLine(QString &line)
 
 CMarkdownBlock::
 CMarkdownBlock(CMarkdown *markdown) :
- markdown_(markdown), parent_(0), type_(BlockType::DOCUMENT)
+ markdown_(markdown), parent_(nullptr), type_(BlockType::DOCUMENT)
 {
 }
 
 CMarkdownBlock::
 CMarkdownBlock(CMarkdownBlock *parent, BlockType type) :
- markdown_(0), parent_(parent), type_(type)
+ markdown_(nullptr), parent_(parent), type_(type)
 {
 }
 
@@ -133,6 +146,27 @@ appendLine(const QString &line)
   assert(! lines_.empty());
 
   lines_.back().line += line;
+}
+
+void
+CMarkdownBlock::
+preProcess()
+{
+  currentLine_ = 0;
+
+  while (currentLine_ < int(lines_.size())) {
+    // read line (tabs converted to 4 spaces)
+    LineData line1;
+
+    if (! getLine(line1))
+      break;
+
+    LinkRef linkRef;
+
+    if (isLinkReference(line1.line, linkRef)) {
+      markdown()->addLink(linkRef);
+    }
+  }
 }
 
 QString
@@ -175,7 +209,7 @@ processLines()
       break;
 
     if (markdown()->isDebug())
-      std::cerr << "Line: '" << line1.line.toStdString() << "'" << std::endl;
+      std::cerr << "DEBUG: Line: '" << line1.line.toStdString() << "'" << std::endl;
 
     //---
 
@@ -233,126 +267,26 @@ processLines()
     else if (isLinkReference(line1.line, linkRef)) {
       endBlock();
 
-      markdown()->addLink(linkRef);
+      int ind = linkRef.dest.indexOf("#");
+
+      if (ind == 0) {
+        QString ref1 = linkRef.dest.mid(1);
+
+        // should match linkRef.ref ?
+        html += QString("<a name=\"%1\"></a>\n").arg(ref1);
+      }
+
+      //markdown()->addLink(linkRef);
     }
     else if (isUnorderedListLine(line1.line, list)) {
       endBlock();
 
-      CMarkdownBlock *block = startBlock(BlockType::UL);
-
-      startBlock(BlockType::LI);
-
-      addBlockLine(list.text);
-
-      int bl = 0;
-
-      LineData line2;
-
-      while (getLine(line2)) {
-        ListData list1;
-
-        if      (line2.indent >= list.indent) {
-          addBlockLine(line2.line.mid(list.indent));
-
-          bl = 0;
-        }
-        else if (isUnorderedListLine(line2.line, list1)) {
-          if (bl > 0) {
-            endBlock();
-
-            startBlock(BlockType::LI);
-          }
-
-          if (list1.indent >= list.indent && list1.c == list.c) {
-            endBlock();
-
-            startBlock(BlockType::LI);
-
-            addBlockLine(list1.text);
-          }
-          else {
-            ungetLine();
-            break;
-          }
-
-          bl = 0;
-        }
-        else if (isBlankLine(line2.line)) {
-          ++bl;
-
-          if (bl > 1)
-            break;
-        }
-        else {
-          ungetLine();
-          break;
-        }
-      }
-
-      endBlock();
-      endBlock();
-
-      html += block->toHtml();
+      html += processList(BlockType::UL, list);
     }
     else if (isOrderedListLine(line1.line, list)) {
       endBlock();
 
-      CMarkdownBlock *block = startBlock(BlockType::OL);
-
-      startBlock(BlockType::LI);
-
-      addBlockLine(list.text);
-
-      int bl = 0;
-
-      LineData line2;
-
-      while (getLine(line2)) {
-        ListData list1;
-
-        if      (line2.indent >= list.indent) {
-          addBlockLine(line2.line.mid(list.indent));
-
-          bl = 0;
-        }
-        else if (isOrderedListLine(line2.line, list1)) {
-          if (bl > 0) {
-            // add empty list item
-            endBlock();
-
-            startBlock(BlockType::LI);
-          }
-
-          if (list1.indent >= list.indent && list1.c == list.c) {
-            endBlock();
-
-            startBlock(BlockType::LI);
-
-            addBlockLine(list1.text);
-          }
-          else {
-            ungetLine();
-            break;
-          }
-
-          bl = 0;
-        }
-        else if (isBlankLine(line2.line)) {
-          ++bl;
-
-          if (bl > 1)
-            break;
-        }
-        else {
-          ungetLine();
-          break;
-        }
-      }
-
-      endBlock();
-      endBlock();
-
-      html += block->toHtml();
+      html += processList(BlockType::OL, list);
     }
     else if (isATXHeader(line1.line, type, text)) {
       endBlock();
@@ -498,6 +432,160 @@ processLines()
   endBlock();
 
   return html;
+}
+
+QString
+CMarkdownBlock::
+processList(BlockType type, const ListData &list)
+{
+  QString res;
+
+  CMarkdownBlock *block = startBlock(type);
+
+  startBlock(BlockType::LI);
+
+  addBlockLine(list.text);
+
+  int numBlankLines = 0;
+
+  LineData line2;
+
+  while (getLine(line2)) {
+    ListData list1;
+
+    if      (isUnorderedListLine(line2.line, list1)) {
+      if (type == BlockType::UL) {
+        if (numBlankLines > 0) {
+          // add empty list item
+          endBlock(); // LI
+
+          startBlock(BlockType::LI);
+        }
+
+        if (list1.indent >= list.indent && list1.c == list.c) {
+          // start child list if indent 2 or more greater
+          if (list1.indent >= list.indent + 2) {
+            endBlock(); // LI
+
+            processList(BlockType::UL, list1);
+
+            startBlock(BlockType::LI);
+
+            numBlankLines = 0;
+          }
+          else {
+            endBlock(); // LI
+
+            startBlock(BlockType::LI);
+
+            addBlockLine(list1.text);
+          }
+        }
+        else {
+          ungetLine();
+          break;
+        }
+
+        numBlankLines = 0;
+      }
+      else {
+        if (list1.indent >= list.indent) {
+          endBlock(); // LI
+
+          processList(BlockType::UL, list1);
+
+          startBlock(BlockType::LI);
+
+          numBlankLines = 0;
+        }
+        else {
+          ungetLine();
+          break;
+        }
+      }
+    }
+    else if (isOrderedListLine(line2.line, list1)) {
+      if (type == BlockType::OL) {
+        if (numBlankLines > 0) {
+          // add empty list item
+          endBlock(); // LI
+
+          startBlock(BlockType::LI);
+        }
+
+        if (list1.indent >= list.indent && list1.c == list.c) {
+          // start child list if indent 2 or more greater
+          if (list1.indent >= list.indent + 2) {
+            endBlock(); // LI
+
+            processList(BlockType::OL, list1);
+
+            startBlock(BlockType::LI);
+
+            numBlankLines = 0;
+          }
+          // start new list item
+          else {
+            endBlock(); // LI
+
+            startBlock(BlockType::LI);
+
+            addBlockLine(list1.text);
+          }
+        }
+        else {
+          ungetLine();
+          break;
+        }
+
+        numBlankLines = 0;
+      }
+      else {
+        if (list1.indent >= list.indent) {
+          endBlock(); // LI
+
+          processList(BlockType::OL, list1);
+
+          startBlock(BlockType::LI);
+
+          numBlankLines = 0;
+        }
+        else {
+          ungetLine();
+          break;
+        }
+      }
+    }
+    else if (isBlankLine(line2.line)) {
+      ++numBlankLines;
+
+      if (numBlankLines > 1)
+        break;
+    }
+    else if (line2.indent >= list.indent) {
+      if (numBlankLines > 0) {
+        addBlockLine("");
+      }
+
+      if (line2.brk)
+        addBlockLine(line2.line.mid(list.indent) + "  ");
+      else
+        addBlockLine(line2.line.mid(list.indent));
+
+      numBlankLines = 0;
+    }
+    else {
+      ungetLine();
+      break;
+    }
+  }
+
+  endBlock(); // LI
+  endBlock(); // UL, OL
+
+  res += block->toHtml();
+
+  return res;
 }
 
 bool
@@ -843,6 +931,7 @@ isLinkReference(const QString &str, LinkRef &link) const
   if (skipSpace(str, i) > 3)
     return false;
 
+  // '[' link reference ']'
   if (i >= len || str[i] != '[')
     return false;
 
@@ -866,6 +955,11 @@ isLinkReference(const QString &str, LinkRef &link) const
 
   skipSpace(str, i);
 
+  //---
+
+  // link destination
+
+  // TODO: <> enclosed link
   // TODO: allow line ending ?
 
   link.dest = "";
@@ -875,6 +969,10 @@ isLinkReference(const QString &str, LinkRef &link) const
   }
 
   skipSpace(str, i);
+
+  //---
+
+  // link title
 
   link.title = "";
 
@@ -889,6 +987,8 @@ isLinkReference(const QString &str, LinkRef &link) const
 
     ++i;
   }
+
+  //---
 
   skipSpace(str, i);
 
@@ -1104,15 +1204,34 @@ replaceEmbeddedStyles(const QString &str) const
       int nc = parseSurroundText(str, i, c, str2);
 
       if (nc > 0) {
+        QString str3 = replaceEmbeddedStyles(str2);
+
         if (nc == 1)
-          str1 += QString("<em>%1</em>").arg(str2);
+          str1 += QString("<em>%1</em>").arg(str3);
         else
-          str1 += QString("<strong>%1</strong>").arg(str2);
+          str1 += QString("<strong>%1</strong>").arg(str3);
       }
       else {
-        while (i < len && str[i] == c) {
-          str1 += c; ++i;
-        }
+        str1 += str[i++];
+        str1 += str[i++];
+      }
+    }
+    // strike
+    else if (i < len - 1 && str[i] == '~' && str[i + 1] == '~') {
+      QChar c = str[i];
+
+      QString str2;
+
+      int nc = parseSurroundText(str, i, c, str2);
+
+      if (nc > 1) {
+        QString str3 = replaceEmbeddedStyles(str2);
+
+        str1 += QString("<strike>%1</strike>").arg(str3);
+      }
+      else {
+        str1 += str[i++];
+        str1 += str[i++];
       }
     }
     // code
@@ -1124,12 +1243,12 @@ replaceEmbeddedStyles(const QString &str) const
       int nc = parseSurroundText(str, i, c, str2);
 
       if (nc > 0) {
-        str1 += QString("<code>%1</code>").arg(str2);
+        QString str3 = replaceEmbeddedStyles(str2);
+
+        str1 += QString("<code>%1</code>").arg(str3);
       }
       else {
-        while (i < len && str[i] == c) {
-          str1 += c; ++i;
-        }
+        str1 += str[i++];
       }
     }
     // image link
@@ -1237,6 +1356,7 @@ replaceEmbeddedStyles(const QString &str) const
 
       ++i;
 
+      // link text
       QString str2;
 
       while (i < len && str[i] != ']')
@@ -1247,6 +1367,7 @@ replaceEmbeddedStyles(const QString &str) const
 
         QString str3;
 
+        // '(' href "title" ')'
         if      (i < len && str[i] == '(') {
           ++i;
 
@@ -1256,7 +1377,18 @@ replaceEmbeddedStyles(const QString &str) const
           if (i < len && str[i] == ')') {
             ++i;
 
-            str1 += QString("<a href=\"%1\">%2</a>").arg(str3).arg(str2);
+            // split into href and title
+            QString href, title;
+
+            splitLinkRef(str3, href, title);
+
+            if (title != "") {
+              str1 += QString("<a href=\"%1\" title=\"%2\">%3</a>").
+                        arg(href).arg(title).arg(str2);
+            }
+            else {
+              str1 += QString("<a href=\"%1\">%2</a>").arg(str3).arg(str2);
+            }
           }
           else {
             i = i1;
@@ -1264,6 +1396,7 @@ replaceEmbeddedStyles(const QString &str) const
             str1 += str[i++];
           }
         }
+        // '[' href ']'
         else if (i < len && str[i] == '[') {
           ++i;
 
@@ -1273,7 +1406,17 @@ replaceEmbeddedStyles(const QString &str) const
           if (i < len && str[i] == ']') {
             ++i;
 
-            str1 += QString("<a href=\"%1\">%2</a>").arg(str3).arg(str2);
+            LinkRef ref;
+
+            if (markdown()->getLink(str3, ref)) {
+              if (ref.title != "")
+                str1 += QString("<a href=\"%1\" title=\"%2\">%3</a>").
+                         arg(ref.dest).arg(ref.title).arg(str2);
+              else
+                str1 += QString("<a href=\"%1\">%2</a>").arg(ref.dest).arg(str2);
+            }
+            else
+              str1 += QString("<a href=\"%1\">%2</a>").arg(str3).arg(str2);
           }
           else {
             i = i1;
@@ -1281,15 +1424,16 @@ replaceEmbeddedStyles(const QString &str) const
             str1 += str[i++];
           }
         }
+        // no href so lookup
         else {
           LinkRef ref;
 
           if (markdown()->getLink(str2, ref)) {
             if (ref.title != "")
               str1 += QString("<a href=\"%1\" title=\"%2\">%3</a>").
-                       arg(ref.ref).arg(ref.title).arg(ref.dest);
+                       arg(ref.dest).arg(ref.title).arg(ref.ref);
             else
-              str1 += QString("<a href=\"%1\">%2</a>").arg(ref.ref).arg(ref.dest);
+              str1 += QString("<a href=\"%1\">%2</a>").arg(ref.dest).arg(ref.ref);
           }
           else {
             i = i1;
@@ -1333,6 +1477,38 @@ replaceEmbeddedStyles(const QString &str) const
   }
 
   return str1;
+}
+
+void
+CMarkdownBlock::
+splitLinkRef(const QString &str, QString &href, QString &title) const
+{
+  int i   = 0;
+  int len = str.size();
+
+  href = "";
+
+  while (i < len && ! str[i].isSpace()) {
+    href += str[i++];
+  }
+
+  skipSpace(str, i);
+
+  // check for title
+  title = "";
+
+  if (i < len && (str[i] == '"' || str[i] == '\'')) {
+    QChar c = str[i++];
+
+    while (i < len && str[i] != c)
+      title += str[i++];
+
+    if (str[i] == c) {
+      ++i;
+    }
+  }
+
+  // TODO: error handling
 }
 
 // check for char surrounded text
@@ -1607,7 +1783,7 @@ startBlock(BlockType type)
   currentBlock_ = block;
 
   if (markdown()->isDebug())
-    std::cerr << "startBlock " << tagName(type).toStdString() << std::endl;
+    std::cerr << "DEBUG: startBlock " << tagName(type).toStdString() << std::endl;
 
   return block;
 }
@@ -1617,7 +1793,7 @@ CMarkdownBlock::
 addBlockLine(const QString &line, bool brk)
 {
   if (markdown()->isDebug())
-    std::cerr << "add: " << line.toStdString() << std::endl;
+    std::cerr << "DEBUG: add: " << line.toStdString() << std::endl;
 
   currentBlock_->addLine(Line(line, brk));
 }
@@ -1627,7 +1803,7 @@ CMarkdownBlock::
 appendBlockLine(const QString &line)
 {
   if (markdown()->isDebug())
-    std::cerr << "append: " << line.toStdString() << std::endl;
+    std::cerr << "DEBUG: append: " << line.toStdString() << std::endl;
 
   currentBlock_->appendLine(line);
 }
@@ -1640,17 +1816,20 @@ flushBlocks()
     endBlock();
 }
 
-void
+CMarkdownBlock *
 CMarkdownBlock::
 endBlock()
 {
   if (currentBlock_ == rootBlock_)
-    return;
+    return nullptr;
 
   if (markdown()->isDebug())
-    std::cerr << "endBlock " << tagName(currentBlock_->blockType()).toStdString() << std::endl;
+    std::cerr << "DEBUG: endBlock " << tagName(currentBlock_->blockType()).toStdString() <<
+                 std::endl;
 
   currentBlock_ = currentBlock_->parent();
+
+  return currentBlock_;
 }
 
 void

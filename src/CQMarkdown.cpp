@@ -49,7 +49,7 @@ save()
 
   QTextStream outStream(&file);
 
-  outStream << edit_->toPlainText();
+  outStream << edit_->text();
 
   file.close();
 
@@ -60,7 +60,7 @@ QString
 CQMarkdown::
 text() const
 {
-  return edit_->toPlainText();
+  return edit_->text();
 }
 
 void

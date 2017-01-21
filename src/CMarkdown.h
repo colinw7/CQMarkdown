@@ -40,7 +40,7 @@ class CMarkdown {
   int     pos_ { 0 }; // input string position
 
   bool            debug_ { false };
-  CMarkdownBlock *rootBlock_ { 0 };
+  CMarkdownBlock *rootBlock_ { nullptr };
   Links           links_;
 };
 
@@ -121,9 +121,13 @@ class CMarkdownBlock {
 
   void appendLine(const QString &line);
 
+  void preProcess();
+
   QString process();
 
   QString processLines();
+
+  QString processList(BlockType type, const ListData &list);
 
   bool isContinuationLine(const QString &str) const;
 
@@ -159,6 +163,8 @@ class CMarkdownBlock {
 
   QString replaceEmbeddedStyles(const QString &str) const;
 
+  void splitLinkRef(const QString &str, QString &href, QString &title) const;
+
   int parseSurroundText(const QString &str, int &i, const QChar &c, QString &str2) const;
 
   QString replaceHtmlChars(const QString &str) const;
@@ -182,7 +188,8 @@ class CMarkdownBlock {
   void appendBlockLine(const QString &line);
 
   void flushBlocks();
-  void endBlock();
+
+  CMarkdownBlock *endBlock();
 
   void print(int depth=0) const;
 
@@ -196,8 +203,8 @@ class CMarkdownBlock {
  private:
   typedef std::vector<CMarkdownBlock *> Blocks;
 
-  CMarkdown*      markdown_ { 0 };
-  CMarkdownBlock* parent_ { 0 };
+  CMarkdown*      markdown_ { nullptr };
+  CMarkdownBlock* parent_ { nullptr };
   BlockType       type_ { BlockType::ROOT };
   Lines           lines_;
   Blocks          blocks_;
@@ -206,8 +213,8 @@ class CMarkdownBlock {
 
   mutable int currentLine_ { 0 };
 
-  CMarkdownBlock *rootBlock_    { 0 };
-  CMarkdownBlock *currentBlock_ { 0 };
+  CMarkdownBlock *rootBlock_    { nullptr };
+  CMarkdownBlock *currentBlock_ { nullptr };
 };
 
 #endif

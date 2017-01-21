@@ -1,0 +1,100 @@
+[foo]: /url "title"
+
+[foo]
+
+   [foo]: 
+      /url  
+           'the title'  
+
+[foo]
+
+[Foo*bar\]]:my_(url) 'title (with parens)'
+
+[Foo*bar\]]
+
+[Foo bar]:
+<my url>
+'title'
+
+[Foo bar]
+
+[foo]: /url '
+title
+line1
+line2
+'
+
+[foo]
+
+[foo]: /url 'title
+
+with blank line'
+
+[foo]
+
+[foo]:
+/url
+
+[foo]
+
+[foo]:
+
+[foo]
+
+[foo]
+
+[foo]: url
+
+[foo]
+
+[foo]: first
+[foo]: second
+
+[FOO]: /url
+
+[Foo]
+
+[ΑΓΩ]: /φου
+
+[αγω]
+
+[foo]: /url
+
+[
+foo
+]: /url
+bar
+
+[foo]: /url "title" ok
+
+    [foo]: /url "title"
+
+[foo]
+
+```
+[foo]: /url
+```
+
+[foo]
+
+Foo
+[bar]: /baz
+
+[bar]
+
+# [Foo]
+[foo]: /url
+> bar
+
+[foo]: /foo-url "foo"
+[bar]: /bar-url
+  "bar"
+[baz]: /baz-url
+
+[foo],
+[bar],
+[baz]
+
+[foo]
+
+> [foo]: /url

@@ -1,0 +1,46 @@
+.
+    a simple
+      indented code block
+.
+    <a/>
+    *hi*
+
+    - one
+.
+    chunk1
+
+    chunk2
+  
+ 
+ 
+    chunk3
+.
+    chunk1
+      
+      chunk2
+.
+Foo
+    bar
+
+.
+    foo
+bar
+.
+# Header
+    foo
+Header
+------
+    foo
+----
+.
+        foo
+    bar
+.
+
+    
+    foo
+    
+
+.
+    foo  
+.
