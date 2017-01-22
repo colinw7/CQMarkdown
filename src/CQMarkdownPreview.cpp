@@ -37,6 +37,11 @@ CQMarkdownPreview(CQMarkdown *markdown) :
   addTab(markTextEdit_ = new QTextEdit, "Mark-Text");
   addTab(refTextEdit_  = new QTextEdit, "Ref-Text");
 
+  markHtmlEdit_->setReadOnly(true);
+  refHtmlEdit_ ->setReadOnly(true);
+  markTextEdit_->setReadOnly(true);
+  refTextEdit_ ->setReadOnly(true);
+
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 

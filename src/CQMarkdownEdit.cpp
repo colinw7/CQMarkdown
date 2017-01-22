@@ -1,14 +1,178 @@
 #include <CQMarkdownEdit.h>
 #include <CQMarkdown.h>
+#include <CMarkdown.h>
 
+#include <QSyntaxHighlighter>
 #include <QToolButton>
-#include <QTextEdit>
 #include <QVBoxLayout>
 #include <QTimer>
 
 #include <svg/normal_svg.h>
 #include <svg/bold_svg.h>
 #include <svg/italic_svg.h>
+#include <svg/h1_svg.h>
+#include <svg/h2_svg.h>
+#include <svg/h3_svg.h>
+#include <svg/h4_svg.h>
+#include <svg/h5_svg.h>
+#include <svg/h6_svg.h>
+#include <svg/ul_svg.h>
+#include <svg/ol_svg.h>
+
+class CQMarkdownEditSyntaxHighlight : public QSyntaxHighlighter {
+ public:
+  struct StyleIndices {
+    int  start  { 0 };
+    int  len    { 0 };
+    bool bold   { false };
+    bool italic { false };
+    bool strike { false };
+
+    StyleIndices(int start1=0, int len1=0) :
+     start(start1), len(len1) {
+    }
+  };
+
+  typedef std::vector<StyleIndices> StyleIndicesList;
+
+ public:
+  CQMarkdownEditSyntaxHighlight(CQMarkdownEditText *text) :
+   QSyntaxHighlighter(text->document()), text_(text) {
+  }
+
+  void highlightBlock(const QString &str) {
+    CMarkdownBlock::ATXData atxData;
+    CMarkdown::LinkRef      linkRef;
+    int                     istart, iend;
+
+    if      (CMarkdownParse::isATXHeader(str, atxData, istart, iend)) {
+      QTextCharFormat fmt;
+
+      fmt.setFontWeight(QFont::Bold);
+
+      setFormat(istart, iend - istart + 1, fmt);
+    }
+    else if (CMarkdownParse::isLinkReference(str, linkRef, istart, iend)) {
+      QTextCharFormat fmt;
+
+      fmt.setForeground(QColor(0,0,255));
+
+      setFormat(istart, iend - istart + 1, fmt);
+    }
+    else if (CMarkdownParse::isRule(str, istart, iend)) {
+      QTextCharFormat fmt;
+
+      fmt.setForeground(QColor(128,128,128));
+
+      setFormat(istart, iend - istart + 1, fmt);
+    }
+    else {
+      StyleIndicesList indicesList;
+
+      getStyleIndices(str, indicesList, StyleIndices());
+
+      for (const auto &indices : indicesList) {
+        QTextCharFormat fmt;
+
+        if (indices.italic)
+          fmt.setFontItalic(true);
+
+        if (indices.bold)
+          fmt.setFontWeight(QFont::Bold);
+
+        if (indices.strike)
+          fmt.setFontStrikeOut(true);
+
+        setFormat(indices.start, indices.len, fmt);
+      }
+    }
+  }
+
+  void getStyleIndices(const QString &str, StyleIndicesList &indicesList,
+                       const StyleIndices &parentIndices) {
+    int i   = 0;
+    int len = str.length();
+
+    while (i < len) {
+      if (str[i] == '*' || str[i] == '_') {
+        int istart = i;
+
+        QString str1;
+        int     start1;
+
+        int nc = CMarkdownParse::parseSurroundText(str, i, str1, start1);
+
+        if (nc > 0) {
+          StyleIndices indices = parentIndices;
+
+          indices.start = istart;
+          indices.len   = i - istart + 1;
+
+          if (nc == 1)
+            indices.italic = true;
+          else
+            indices.bold = true;
+
+          indicesList.push_back(indices);
+
+          //---
+
+          StyleIndicesList indicesList1;
+
+          getStyleIndices(str1, indicesList1, indices);
+
+          for (auto &indices1 : indicesList1) {
+            indices1.start += start1;
+
+            indicesList.push_back(indices1);
+          }
+        }
+        else
+          ++i;
+      }
+      else if (i < len - 1 && str[i] == '~' && str[i + 1] == '~') {
+        int istart = i;
+
+        QString str1;
+        int     start1;
+
+        int nc = CMarkdownParse::parseSurroundText(str, i, str1, start1);
+
+        if (nc > 1) {
+          StyleIndices indices = parentIndices;
+
+          indices.start = istart;
+          indices.len   = i - istart + 1;
+
+          indices.strike = true;
+
+          indicesList.push_back(indices);
+
+          //---
+
+          StyleIndicesList indicesList1;
+
+          getStyleIndices(str1, indicesList1, indices);
+
+          for (auto &indices1 : indicesList1) {
+            indices1.start += start1;
+
+            indicesList.push_back(indices1);
+          }
+        }
+        else
+          ++i;
+      }
+      else
+        ++i;
+    }
+  }
+
+ private:
+  CQMarkdownEditText *text_ { nullptr };
+};
+
+//------
 
 CQMarkdownEdit::
 CQMarkdownEdit(CQMarkdown *markdown) :
@@ -25,8 +189,7 @@ CQMarkdownEdit(CQMarkdown *markdown) :
 
   layout->addWidget(toolbar_);
 
-  edit_ = new QTextEdit;
-  edit_->setObjectName("edit");
+  edit_ = new CQMarkdownEditText(this);
 
   layout->addWidget(edit_);
 
@@ -76,6 +239,7 @@ CQMarkdownEdit::
 normalSlot()
 {
   QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
 
   int i   = 0;
   int len = text.length();
@@ -108,6 +272,7 @@ CQMarkdownEdit::
 boldSlot()
 {
   QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
 
   edit_->textCursor().insertText("**" + text + "**");
 }
@@ -117,8 +282,72 @@ CQMarkdownEdit::
 italicSlot()
 {
   QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
 
   edit_->textCursor().insertText("_" + text + "_");
+}
+
+void
+CQMarkdownEdit::
+headerSlot()
+{
+  QObject *obj = sender();
+
+  int level = toolbar_->headerInd(qobject_cast<QToolButton *>(obj));
+  if (level < 0) return;
+
+  //--
+
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  int i   = 0;
+  int len = text.length();
+
+  while (i < len && text[i].isSpace())
+    ++i;
+
+  while (i < len && text[i] == '#')
+    ++i;
+
+  while (i < len && text[i].isSpace())
+    ++i;
+
+  int i1 = i;
+
+  i = len - 1;
+
+  while (i > i1 && text[i].isSpace())
+    --i;
+
+  while (i > i1 && text[i] == '#')
+    --i;
+
+  while (i > i1 && text[i].isSpace())
+    --i;
+
+  int i2 = i;
+
+  QString text1 = " " + text.mid(i1, i2 - i1 + 1) + " ";
+
+  for (int i = 0; i < level; ++i)
+    text1 = "#" + text1 + "#";
+
+  edit_->textCursor().insertText(text1);
+}
+
+void
+CQMarkdownEdit::
+ulSlot()
+{
+  edit_->textCursor().insertText(" + ");
+}
+
+void
+CQMarkdownEdit::
+olSlot()
+{
+  edit_->textCursor().insertText(" 1. ");
 }
 
 QSize
@@ -168,9 +397,48 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
 
   layout->addWidget(italicButton_);
 
-  layout->addStretch(1);
+  //---
+
+  layout->addSpacing(8);
 
   //---
+
+  hButtons_.resize(6);
+
+  for (int i = 0; i < 6; ++i) {
+    hButtons_[i] = new QToolButton;
+    hButtons_[i]->setIcon(CQPixmapCacheInst->getIcon(QString("H%1").arg(i + 1)));
+
+    connect(hButtons_[i], SIGNAL(clicked()), edit_, SLOT(headerSlot()));
+
+    layout->addWidget(hButtons_[i]);
+  }
+
+  //---
+
+  layout->addSpacing(8);
+
+  //---
+
+  ulButton_ = new QToolButton;
+  ulButton_->setIcon(CQPixmapCacheInst->getIcon("UL"));
+
+  connect(ulButton_, SIGNAL(clicked()), edit_, SLOT(ulSlot()));
+
+  layout->addWidget(ulButton_);
+
+  //---
+
+  olButton_ = new QToolButton;
+  olButton_->setIcon(CQPixmapCacheInst->getIcon("OL"));
+
+  connect(olButton_, SIGNAL(clicked()), edit_, SLOT(olSlot()));
+
+  layout->addWidget(olButton_);
+
+  //---
+
+  layout->addStretch(1);
 
   updateState(false);
 }
@@ -182,4 +450,29 @@ updateState(bool selected)
   normalButton_->setEnabled(selected);
   boldButton_  ->setEnabled(selected);
   italicButton_->setEnabled(selected);
+
+  for (int i = 0; i < 6; ++i)
+    hButtons_[i]->setEnabled(selected);
+}
+
+int
+CQMarkdownEditToolBar::
+headerInd(QToolButton *button) const
+{
+  for (int i = 0; i < 6; ++i)
+    if (hButtons_[i] == button)
+      return i + 1;
+
+  return -1;
+}
+
+//------
+
+CQMarkdownEditText::
+CQMarkdownEditText(CQMarkdownEdit *edit) :
+ QTextEdit(edit), edit_(edit)
+{
+  setObjectName("text");
+
+  highlighter_ = new CQMarkdownEditSyntaxHighlight(this);
 }

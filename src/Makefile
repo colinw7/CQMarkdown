@@ -361,6 +361,7 @@ compiler_clean: compiler_moc_header_clean
 
 ../obj/CQMarkdownEdit.o: CQMarkdownEdit.cpp CQMarkdownEdit.h \
 		CQMarkdown.h \
+		CMarkdown.h \
 		svg/normal_svg.h \
 		../../CQUtil/include/CQPixmapCache.h \
 		svg/bold_svg.h \

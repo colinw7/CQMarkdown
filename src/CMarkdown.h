@@ -99,6 +99,11 @@ class CMarkdownBlock {
     }
   };
 
+  struct ATXData {
+    BlockType type;
+    QString   text;
+  };
+
  public:
   typedef std::vector<Line>  Lines;
   typedef CMarkdown::LinkRef LinkRef;
@@ -131,11 +136,6 @@ class CMarkdownBlock {
 
   bool isContinuationLine(const QString &str) const;
 
-  bool isBlankLine(const QString &str) const;
-  bool isRule     (const QString &str) const;
-
-  bool isATXHeader(const QString &str, CMarkdownBlock::BlockType &type, QString &text) const;
-
   bool isSetTextLine(const QString &str, CMarkdownBlock::BlockType &type) const;
 
   bool isIndentLine(const QString &str, int &n) const;
@@ -165,19 +165,11 @@ class CMarkdownBlock {
 
   void splitLinkRef(const QString &str, QString &href, QString &title) const;
 
-  int parseSurroundText(const QString &str, int &i, const QChar &c, QString &str2) const;
-
   QString replaceHtmlChars(const QString &str) const;
 
   bool isAutoLink(const QString &str, int &i, QString &ref) const;
 
   bool isASCIIPunct(const QChar &c) const;
-
-  int skipSpace(const QString &str, int &i) const;
-  int backSkipSpace(const QString &str, int &i) const;
-
-  int skipChar(const QString &str, int &i, const QChar &c) const;
-  int backSkipChar(const QString &str, int &i, const QChar &c) const;
 
   bool getLine(LineData &line);
   void ungetLine();
@@ -216,5 +208,28 @@ class CMarkdownBlock {
   CMarkdownBlock *rootBlock_    { nullptr };
   CMarkdownBlock *currentBlock_ { nullptr };
 };
+
+//------
+
+namespace CMarkdownParse {
+  bool isATXHeader(const QString &str, CMarkdownBlock::ATXData &atxData, int &istart, int &iend);
+
+  bool isLinkReference(const QString &str, CMarkdown::LinkRef &linkRef, int &istart, int &iend);
+
+  bool isRule(const QString &str, int &istart, int &iend);
+
+  int parseSurroundText(const QString &str, int &i, QString &str1, int &start1);
+  int parseSurroundText(const QString &str, int &i, const QChar &c, QString &str1, int &start1);
+
+  bool isASCIIPunct(const QChar &c);
+
+  bool isBlankLine(const QString &str);
+
+  int skipSpace(const QString &str, int &i);
+  int backSkipSpace(const QString &str, int &i);
+
+  int skipChar(const QString &str, int &i, const QChar &c);
+  int backSkipChar(const QString &str, int &i, const QChar &c);
+}
 
 #endif

@@ -1,6 +1,7 @@
 #include <CMarkdown.h>
 #include <QFile>
 #include <QTextStream>
+#include <set>
 #include <iostream>
 #include <cassert>
 
@@ -162,8 +163,9 @@ preProcess()
       break;
 
     LinkRef linkRef;
+    int     istart, iend;
 
-    if (isLinkReference(line1.line, linkRef)) {
+    if (CMarkdownParse::isLinkReference(line1.line, linkRef, istart, iend)) {
       markdown()->addLink(linkRef);
     }
   }
@@ -196,10 +198,11 @@ processLines()
 
   int       indent;
   QChar     c;
-  QString   text;
-  BlockType type;
+  ATXData   atxData;
   LinkRef   linkRef;
+  QString   text;
   ListData  list;
+  int       istart, iend;
 
   while (currentLine_ < int(lines_.size())) {
     // read line (tabs converted to 4 spaces)
@@ -215,7 +218,7 @@ processLines()
 
     CodeFence fence;
 
-    if      (isBlankLine(line1.line)) {
+    if      (CMarkdownParse::isBlankLine(line1.line)) {
       endBlock();
     }
     else if (isStartCodeFence(line1.line, fence)) {
@@ -239,7 +242,7 @@ processLines()
 
       html += block->toHtml();
     }
-    else if (isRule(line1.line)) {
+    else if (CMarkdownParse::isRule(line1.line, istart, iend)) {
       endBlock();
 
       CMarkdownBlock *block = startBlock(BlockType::HR);
@@ -256,7 +259,7 @@ processLines()
       LineData line2;
 
       while (getLine(line2)) {
-        if (isBlankLine(line2.line))
+        if (CMarkdownParse::isBlankLine(line2.line))
           break;
 
         html += line2.line + "\n";
@@ -264,7 +267,7 @@ processLines()
 
       html += "\n";
     }
-    else if (isLinkReference(line1.line, linkRef)) {
+    else if (CMarkdownParse::isLinkReference(line1.line, linkRef, istart, iend)) {
       endBlock();
 
       int ind = linkRef.dest.indexOf("#");
@@ -288,12 +291,12 @@ processLines()
 
       html += processList(BlockType::OL, list);
     }
-    else if (isATXHeader(line1.line, type, text)) {
+    else if (CMarkdownParse::isATXHeader(line1.line, atxData, istart, iend)) {
       endBlock();
 
-      CMarkdownBlock *block = startBlock(type);
+      CMarkdownBlock *block = startBlock(atxData.type);
 
-      addBlockLine(text);
+      addBlockLine(atxData.text);
 
       endBlock();
 
@@ -313,7 +316,7 @@ processLines()
       while (getLine(line2)) {
         if      (isIndentLine(line2.line, indent))
           addBlockLine(line2.line.mid(indent));
-        else if (isBlankLine(line2.line))
+        else if (CMarkdownParse::isBlankLine(line2.line))
           addBlockLine(line2.line);
         else {
           ungetLine();
@@ -384,7 +387,7 @@ processLines()
       LineData line2;
 
       while (getLine(line2)) {
-        if (isBlankLine(line2.line))
+        if (CMarkdownParse::isBlankLine(line2.line))
           break;
 
         BlockType type;
@@ -394,7 +397,7 @@ processLines()
 
           int i = 0;
 
-          skipSpace(line1.line, i);
+          CMarkdownParse::skipSpace(line1.line, i);
 
           if (i > 0)
             line1.line = line1.line.mid(i);
@@ -556,7 +559,7 @@ processList(BlockType type, const ListData &list)
         }
       }
     }
-    else if (isBlankLine(line2.line)) {
+    else if (CMarkdownParse::isBlankLine(line2.line)) {
       ++numBlankLines;
 
       if (numBlankLines > 1)
@@ -594,115 +597,8 @@ isContinuationLine(const QString &str) const
 {
   int len = str.length();
 
-  if (len == 0 || isASCIIPunct(str[0]))
+  if (len == 0 || CMarkdownParse::isASCIIPunct(str[0]))
     return false;
-
-  return true;
-}
-
-bool
-CMarkdownBlock::
-isBlankLine(const QString &str) const
-{
-  // An empty line, or a line containing only spaces or tabs, is a blank line.
-  int i = 0;
-
-  if (skipSpace(str, i) != str.length())
-    return false;
-
-  return true;
-}
-
-bool
-CMarkdownBlock::
-isRule(const QString &str) const
-{
-  int len = str.length();
-
-  int i = 0;
-
-  // max of three spaces indent
-  if (skipSpace(str, i) >= 4)
-    return false;
-
-  // check for rule characters
-  QChar c = str[i];
-
-  if (c != '-' && c != '*' && c != '_')
-    return false;
-
-  ++i;
-
-  // check for three or more matching characters (with spaces between)
-  int nc = 1;
-
-  while (i < len) {
-    skipSpace(str, i);
-
-    if (str[i] != c)
-      return false;
-
-    ++i; ++nc;
-  }
-
-  return (nc >= 3);
-}
-
-bool
-CMarkdownBlock::
-isATXHeader(const QString &str, CMarkdownBlock::BlockType &type, QString &text) const
-{
-  int len = str.length();
-
-  int i = 0;
-
-  // up to 3 spaces
-  if (skipSpace(str, i) > 3)
-    return false;
-
-  // followed by hash (max of 6 hashes)
-  int nh = skipChar(str, i, '#');
-
-  if (nh < 1 || nh > 6)
-    return false;
-
-  // followed by a space or end of line
-  if (i < len && ! str[i].isSpace())
-    return false;
-
-  // get header type
-  if      (nh == 1) type = CMarkdownBlock::BlockType::H1;
-  else if (nh == 2) type = CMarkdownBlock::BlockType::H2;
-  else if (nh == 3) type = CMarkdownBlock::BlockType::H3;
-  else if (nh == 4) type = CMarkdownBlock::BlockType::H4;
-  else if (nh == 5) type = CMarkdownBlock::BlockType::H5;
-  else if (nh == 6) type = CMarkdownBlock::BlockType::H6;
-
-  // skip spaces after '#'
-  skipSpace(str, i);
-
-  // get remaining text
-  text = str.mid(i);
-
-  // remove trailing '#'
-  if (text != "") {
-    if (text[0] == '#')
-      text = " " + text;
-
-    int len1 = text.length();
-
-    int i1 = len1 - 1;
-
-    backSkipSpace(text, i1);
-
-    backSkipChar(text, i1, '#');
-
-    if (i1 >= 0 && text[i1].isSpace()) {
-      backSkipSpace(text, i1);
-
-      text = text.mid(0, i1 + 1);
-    }
-  }
 
   return true;
 }
@@ -715,7 +611,7 @@ isSetTextLine(const QString &str, CMarkdownBlock::BlockType &type) const
   int len = str.length();
 
   // up to 3 spaces
-  if (skipSpace(str, i) > 3)
+  if (CMarkdownParse::skipSpace(str, i) > 3)
     return false;
 
   // followed by '=' or '-'
@@ -724,9 +620,9 @@ isSetTextLine(const QString &str, CMarkdownBlock::BlockType &type) const
 
   QChar c = str[i];
 
-  (void) skipChar(str, i, c);
+  (void) CMarkdownParse::skipChar(str, i, c);
 
-  (void) skipSpace(str, i);
+  (void) CMarkdownParse::skipSpace(str, i);
 
   // must be end of line
   if (i < len)
@@ -745,7 +641,7 @@ isIndentLine(const QString &str, int &n) const
 
   int i = 0;
 
-  n = skipSpace(str, i);
+  n = CMarkdownParse::skipSpace(str, i);
 
   if (n >= 4 && i != len)
     return true;
@@ -762,7 +658,7 @@ isFormatLine(const QString &str) const
   int i = 0;
 
   // skip space and detect indent line
-  if (skipSpace(str, i) >= 4 && i != len)
+  if (CMarkdownParse::skipSpace(str, i) >= 4 && i != len)
     return true;
 
   // starts with format char
@@ -793,7 +689,7 @@ isFormatChar(const QString &str, int i) const
 
     QChar c = str[i];
 
-    if (skipChar(str, j, c) >= 3)
+    if (CMarkdownParse::skipChar(str, j, c) >= 3)
       return true;
   }
 
@@ -820,7 +716,7 @@ isStartCodeFence(const QString &str, CodeFence &fence) const
 
   int i = 0;
 
-  if (skipSpace(str, i) > 3)
+  if (CMarkdownParse::skipSpace(str, i) > 3)
     return false;
 
   if (i >= len)
@@ -831,12 +727,12 @@ isStartCodeFence(const QString &str, CodeFence &fence) const
   if (fence.c != '`' && fence.c != '~')
     return false;
 
-  fence.n = skipChar(str, i, fence.c) + 1;
+  fence.n = CMarkdownParse::skipChar(str, i, fence.c) + 1;
 
   if (fence.n < 3)
     return false;
 
-  skipSpace(str, i);
+  CMarkdownParse::skipSpace(str, i);
 
   fence.info = "";
 
@@ -860,7 +756,7 @@ isEndCodeFence(const QString &str, const CodeFence &fence) const
 
   int i = 0;
 
-  if (skipSpace(str, i) > 3)
+  if (CMarkdownParse::skipSpace(str, i) > 3)
     return false;
 
   if (i >= len)
@@ -871,7 +767,7 @@ isEndCodeFence(const QString &str, const CodeFence &fence) const
 
   ++i;
 
-  if (skipChar(str, i, fence.c) < fence.n - 1)
+  if (CMarkdownParse::skipChar(str, i, fence.c) < fence.n - 1)
     return false;
 
   return true;
@@ -881,11 +777,28 @@ bool
 CMarkdownBlock::
 isHtmlLine(const QString &str) const
 {
+  typedef std::set<QString> NameSet;
+
+  NameSet nameSet;
+
+  if (nameSet.empty()) {
+    std::vector<QString> names = {{
+      "article", "header", "aside", "hgroup", "blockquote", "hr", "iframe", "body",
+      "map", "button", "object", "canvas", "caption", "output", "col", "p", "colgroup",
+      "pre", "dd", "progress", "div", "section", "dl", "table", "td", "dt", "tbody",
+      "embed", "textarea", "fieldset", "tfoot", "figcaption", "th", "figure", "thead",
+      "footer", "tr", "form", "h1", "h2", "h3", "h4", "h5", "h6", "ol", "ul", "li",
+      "video", "script", "style" }};
+
+    for (const auto &name : names)
+      nameSet.insert(name);
+  }
+
   int len = str.length();
 
   int i = 0;
 
-  if (skipSpace(str, i) > 3)
+  if (CMarkdownParse::skipSpace(str, i) > 3)
     return false;
 
   if (i >= len)
@@ -901,101 +814,11 @@ isHtmlLine(const QString &str) const
   while (i < len && str[i].isLetter())
     name += str[i++];
 
-  if (name == "article"    || name == "header"     || name == "aside"    || name == "hgroup" ||
-      name == "blockquote" || name == "hr"         || name == "iframe"   || name == "body" ||
-      name == "map"        || name == "button"     || name == "object" ||
-      name == "canvas"     || name == "caption"    || name == "output" ||
-      name == "col"        || name == "p"          || name == "colgroup" || name == "pre" ||
-      name == "dd"         || name == "progress"   || name == "div"      || name == "section" ||
-      name == "dl"         || name == "table"      || name == "td"       || name == "dt" ||
-      name == "tbody"      || name == "embed"      || name == "textarea" || name == "fieldset" ||
-      name == "tfoot"      || name == "figcaption" || name == "th"       || name == "figure" ||
-      name == "thead"      || name == "footer"     || name == "tr"       || name == "form" ||
-      name == "h1"         || name == "h2"         || name == "h3" ||
-      name == "h4"         || name == "h5"         || name == "h6" ||
-      name == "ol"         || name == "ul"         || name == "li" ||
-      name == "video"      || name == "script"     || name == "style")
-    return true;
+  QString lname = name.toLower();
 
-  return false;
-}
+  auto p = nameSet.find(lname);
 
-bool
-CMarkdownBlock::
-isLinkReference(const QString &str, LinkRef &link) const
-{
-  int len = str.length();
-
-  int i = 0;
-
-  if (skipSpace(str, i) > 3)
-    return false;
-
-  // '[' link reference ']'
-  if (i >= len || str[i] != '[')
-    return false;
-
-  ++i;
-
-  link.ref = "";
-
-  while (i < len && str[i] != ']') {
-    link.ref += str[i++];
-  }
-
-  if (i >= len)
-    return false;
-
-  ++i;
-
-  if (i >= len || str[i] != ':')
-    return false;
-
-  ++i;
-
-  skipSpace(str, i);
-
-  //---
-
-  // link destination
-
-  // TODO: <> enclosed link
-  // TODO: allow line ending ?
-
-  link.dest = "";
-
-  while (i < len && ! str[i].isSpace()) {
-    link.dest += str[i++];
-  }
-
-  skipSpace(str, i);
-
-  //---
-
-  // link title
-
-  link.title = "";
-
-  if (i < len && (str[i] == '"' || str[i] == '\'')) {
-    QChar c = str[i++];
-
-    while (i < len && str[i] != c)
-      link.title += str[i++];
-
-    if (str[i] != c)
-      return false;
-
-    ++i;
-  }
-
-  //---
-
-  skipSpace(str, i);
-
-  if (i < len)
-    return false;
-
-  return true;
+  return (p != nameSet.end());
 }
 
 bool
@@ -1006,7 +829,7 @@ isBlockQuote(const QString &str, QString &quote) const
 
   int i = 0;
 
-  if (skipSpace(str, i) >= 4)
+  if (CMarkdownParse::skipSpace(str, i) >= 4)
     return false;
 
   if (i >= len || str[i] != '>')
@@ -1030,7 +853,7 @@ isUnorderedListLine(const QString &str, ListData &list) const
 
   int i = 0;
 
-  if (skipSpace(str, i) >= 4)
+  if (CMarkdownParse::skipSpace(str, i) >= 4)
     return false;
 
   if (i >= len - 1)
@@ -1048,7 +871,7 @@ isUnorderedListLine(const QString &str, ListData &list) const
 
   ++i;
 
-  skipSpace(str, i);
+  CMarkdownParse::skipSpace(str, i);
 
   list.indent = i;
 
@@ -1065,7 +888,7 @@ isOrderedListLine(const QString &str, ListData &list) const
 
   int i = 0;
 
-  if (skipSpace(str, i) >= 4)
+  if (CMarkdownParse::skipSpace(str, i) >= 4)
     return false;
 
   if (i >= len - 2)
@@ -1091,7 +914,7 @@ isOrderedListLine(const QString &str, ListData &list) const
 
   ++i;
 
-  skipSpace(str, i);
+  CMarkdownParse::skipSpace(str, i);
 
   list.indent = i;
 
@@ -1108,7 +931,7 @@ isTableLine(const QString &str) const
 
   int i = 0;
 
-  if (skipSpace(str, i) >= 4)
+  if (CMarkdownParse::skipSpace(str, i) >= 4)
     return false;
 
   if (i >= len || str[i] != '|')
@@ -1125,7 +948,7 @@ parseTableLine(const QString &str)
 
   int i = 0;
 
-  skipSpace(str, i);
+  CMarkdownParse::skipSpace(str, i);
   assert(i < 4);
 
   assert(i < len && str[i] == '|');
@@ -1177,7 +1000,7 @@ replaceEmbeddedStyles(const QString &str) const
 
   while (i < len) {
     // escape
-    if      (i < len - 1 && str[i] == '\\' && isASCIIPunct(str[i + 1])) {
+    if      (i < len - 1 && str[i] == '\\' && CMarkdownParse::isASCIIPunct(str[i + 1])) {
       ++i;
 
       if      (str[i] == '<') {
@@ -1197,11 +1020,10 @@ replaceEmbeddedStyles(const QString &str) const
     }
     // emphasis
     else if (str[i] == '*' || str[i] == '_') {
-      QChar c = str[i];
-
       QString str2;
+      int     start2;
 
-      int nc = parseSurroundText(str, i, c, str2);
+      int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 0) {
         QString str3 = replaceEmbeddedStyles(str2);
@@ -1213,16 +1035,14 @@ replaceEmbeddedStyles(const QString &str) const
       }
       else {
         str1 += str[i++];
-        str1 += str[i++];
       }
     }
     // strike
     else if (i < len - 1 && str[i] == '~' && str[i + 1] == '~') {
-      QChar c = str[i];
-
       QString str2;
+      int     start2;
 
-      int nc = parseSurroundText(str, i, c, str2);
+      int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 1) {
         QString str3 = replaceEmbeddedStyles(str2);
@@ -1236,11 +1056,10 @@ replaceEmbeddedStyles(const QString &str) const
     }
     // code
     else if (str[i] == '`') {
-      QChar c = str[i];
-
       QString str2;
+      int     start2;
 
-      int nc = parseSurroundText(str, i, c, str2);
+      int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 0) {
         QString str3 = replaceEmbeddedStyles(str2);
@@ -1492,7 +1311,7 @@ splitLinkRef(const QString &str, QString &href, QString &title) const
     href += str[i++];
   }
 
-  skipSpace(str, i);
+  CMarkdownParse::skipSpace(str, i);
 
   // check for title
   title = "";
@@ -1509,58 +1328,6 @@ splitLinkRef(const QString &str, QString &href, QString &title) const
   }
 
   // TODO: error handling
-}
-
-// check for char surrounded text
-int
-CMarkdownBlock::
-parseSurroundText(const QString &str, int &i, const QChar &c, QString &str2) const
-{
-  int len = str.length();
-
-  if (i >= len || str[i] != c)
-    return 0;
-
-  int  i1    = i;
-  bool found = false;
-
-  int nc = 1;
-
-  ++i;
-
-  while (i < len && str[i] == c) {
-    ++nc; ++i;
-  }
-
-  while (i < len) {
-    if (i < len && str[i] == c) {
-      ++i;
-
-      int nc1 = 1;
-
-      while (i < len && nc1 < nc && str[i] == c) {
-        ++nc1; ++i;
-      }
-
-      if (nc1 == nc) {
-        found = true;
-        break;
-      }
-      else {
-        for (int j = 0; j < nc1; ++j)
-          str2 += c;
-      }
-    }
-    else
-      str2 += str[i++];
-  }
-
-  if (! found) {
-    i = i1;
-    return 0;
-  }
-
-  return nc;
 }
 
 QString
@@ -1603,7 +1370,7 @@ isAutoLink(const QString &str, int &i, QString &ref) const
   if (i1 >= len || str[i1] != '<')
     return false;
 
-  skipSpace(str, i1);
+  CMarkdownParse::skipSpace(str, i1);
 
   ++i1;
 
@@ -1616,14 +1383,14 @@ isAutoLink(const QString &str, int &i, QString &ref) const
     scheme += str[i1++];
   }
 
-  skipSpace(str, i1);
+  CMarkdownParse::skipSpace(str, i1);
 
   if (i1 >= len || str[i1] != ':')
     return false;
 
   ++i1;
 
-  skipSpace(str, i1);
+  CMarkdownParse::skipSpace(str, i1);
 
   QString ref1;
 
@@ -1642,71 +1409,6 @@ isAutoLink(const QString &str, int &i, QString &ref) const
   i = i1;
 
   return true;
-}
-
-bool
-CMarkdownBlock::
-isASCIIPunct(const QChar &c) const
-{
-  static QString chars("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~");
-
-  return (chars.indexOf(c) >= 0);
-}
-
-int
-CMarkdownBlock::
-skipSpace(const QString &str, int &i) const
-{
-  int len = str.length();
-
-  int n = 0;
-
-  while (i < len && str[i].isSpace()) {
-    ++i; ++n;
-  }
-
-  return n;
-}
-
-int
-CMarkdownBlock::
-backSkipSpace(const QString &str, int &i) const
-{
-  int n = 0;
-
-  while (i >= 0 && str[i].isSpace()) {
-    --i; ++n;
-  }
-
-  return n;
-}
-
-int
-CMarkdownBlock::
-skipChar(const QString &str, int &i, const QChar &c) const
-{
-  int len = str.length();
-
-  int n = 0;
-
-  while (i < len && str[i] == c) {
-    ++i; ++n;
-  }
-
-  return n;
-}
-
-int
-CMarkdownBlock::
-backSkipChar(const QString &str, int &i, const QChar &c) const
-{
-  int n = 0;
-
-  while (i >= 0 && str[i] == c) {
-    --i; ++n;
-  }
-
-  return n;
 }
 
 bool
@@ -1758,7 +1460,7 @@ getLine(LineData &line)
 
   line.indent = 0;
 
-  skipSpace(line.line, line.indent);
+  CMarkdownParse::skipSpace(line.line, line.indent);
 
   return true;
 }
@@ -1995,3 +1697,345 @@ isRecurseType(BlockType type)
 
   return false;
 }
+
+//------
+
+// get ATX header type, text range and inside text
+bool
+CMarkdownParse::
+isATXHeader(const QString &str, CMarkdownBlock::ATXData &atxData, int &istart, int &iend)
+{
+  int len = str.length();
+
+  int i = 0;
+
+  // up to 3 spaces
+  if (skipSpace(str, i) > 3)
+    return false;
+
+  istart = i;
+
+  // followed by hash (max of 6 hashes)
+  int nh = skipChar(str, i, '#');
+
+  if (nh < 1 || nh > 6)
+    return false;
+
+  // followed by a space or end of line
+  if (i < len && ! str[i].isSpace())
+    return false;
+
+  // get header type
+  if      (nh == 1) atxData.type = CMarkdownBlock::BlockType::H1;
+  else if (nh == 2) atxData.type = CMarkdownBlock::BlockType::H2;
+  else if (nh == 3) atxData.type = CMarkdownBlock::BlockType::H3;
+  else if (nh == 4) atxData.type = CMarkdownBlock::BlockType::H4;
+  else if (nh == 5) atxData.type = CMarkdownBlock::BlockType::H5;
+  else if (nh == 6) atxData.type = CMarkdownBlock::BlockType::H6;
+
+  // skip spaces after '#'
+  CMarkdownParse::skipSpace(str, i);
+
+  // get remaining text
+  atxData.text = str.mid(i);
+
+  iend = i;
+
+  // remove trailing '#'
+  if (atxData.text != "") {
+    if (atxData.text[0] == '#')
+      atxData.text = " " + atxData.text;
+
+    int len1 = atxData.text.length();
+
+    int i1 = len1 - 1;
+
+    backSkipSpace(atxData.text, i1);
+
+    iend += i1;
+
+    backSkipChar(atxData.text, i1, '#');
+
+    if (i1 >= 0 && atxData.text[i1].isSpace()) {
+      backSkipSpace(atxData.text, i1);
+
+      atxData.text = atxData.text.mid(0, i1 + 1);
+    }
+  }
+
+  return true;
+}
+
+// get link reference details from string with text range
+bool
+CMarkdownParse::
+isLinkReference(const QString &str, CMarkdown::LinkRef &link, int &istart, int &iend)
+{
+  int len = str.length();
+
+  int i = 0;
+
+  if (skipSpace(str, i) > 3)
+    return false;
+
+  // '[' link reference ']'
+  if (i >= len || str[i] != '[')
+    return false;
+
+  istart = i;
+
+  ++i;
+
+  link.ref = "";
+
+  while (i < len && str[i] != ']') {
+    link.ref += str[i++];
+  }
+
+  if (i >= len)
+    return false;
+
+  ++i;
+
+  if (i >= len || str[i] != ':')
+    return false;
+
+  ++i;
+
+  skipSpace(str, i);
+
+  //---
+
+  // link destination
+
+  // TODO: <> enclosed link
+  // TODO: allow line ending ?
+
+  link.dest = "";
+
+  while (i < len && ! str[i].isSpace()) {
+    link.dest += str[i++];
+  }
+
+  iend = i;
+
+  skipSpace(str, i);
+
+  //---
+
+  // link title
+
+  link.title = "";
+
+  if (i < len && (str[i] == '"' || str[i] == '\'')) {
+    QChar c = str[i++];
+
+    while (i < len && str[i] != c)
+      link.title += str[i++];
+
+    if (i >= len || str[i] != c)
+      return false;
+
+    ++i;
+
+    iend = i;
+  }
+
+  //---
+
+  skipSpace(str, i);
+
+  if (i < len)
+    return false;
+
+  return true;
+}
+
+bool
+CMarkdownParse::
+isRule(const QString &str, int &istart, int &iend)
+{
+  int len = str.length();
+
+  int i = 0;
+
+  // max of three spaces indent
+  if (skipSpace(str, i) >= 4)
+    return false;
+
+  // check for rule characters
+  if (i >= len)
+    return false;
+
+  QChar c = str[i];
+
+  if (c != '-' && c != '*' && c != '_')
+    return false;
+
+  istart = i;
+
+  ++i;
+
+  // check for three or more matching characters (with spaces between)
+  int nc = 1;
+
+  while (i < len) {
+    skipSpace(str, i);
+
+    if (str[i] != c)
+      return false;
+
+    ++i; ++nc;
+  }
+
+  iend = i;
+
+  return (nc >= 3);
+}
+
+// check for char surrounded text
+int
+CMarkdownParse::
+parseSurroundText(const QString &str, int &i, QString &str1, int &start1)
+{
+  return parseSurroundText(str, i, str[i], str1, start1);
+}
+
+// check for char surrounded text
+int
+CMarkdownParse::
+parseSurroundText(const QString &str, int &i, const QChar &c, QString &str1, int &start1)
+{
+  int len = str.length();
+
+  if (i >= len || str[i] != c)
+    return 0;
+
+  int  i1    = i;
+  bool found = false;
+
+  // count number of start characters
+  int nc = 1;
+
+  ++i;
+
+  while (i < len && str[i] == c) {
+    ++nc; ++i;
+  }
+
+  // search for matching number of end characters
+  while (i < len) {
+    if (str[i] == c) {
+      ++i;
+
+      int nc1 = 1;
+
+      while (i < len && nc1 < nc && str[i] == c) {
+        ++nc1; ++i;
+      }
+
+      if (nc1 == nc) {
+        found = true;
+        break;
+      }
+
+      if (str1 == "")
+        start1 = i;
+
+      for (int j = 0; j < nc1; ++j)
+        str1 += c;
+    }
+    else {
+      if (str1 == "")
+        start1 = i;
+
+      str1 += str[i++];
+    }
+  }
+
+  if (! found) {
+    i = i1;
+    return 0;
+  }
+
+  return nc;
+}
+
+bool
+CMarkdownParse::
+isASCIIPunct(const QChar &c)
+{
+  static QString chars("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~");
+
+  return (chars.indexOf(c) >= 0);
+}
+
+bool
+CMarkdownParse::
+isBlankLine(const QString &str)
+{
+  // An empty line, or a line containing only spaces or tabs, is a blank line.
+  int i = 0;
+
+  if (skipSpace(str, i) != str.length())
+    return false;
+
+  return true;
+}
+
+int
+CMarkdownParse::
+skipSpace(const QString &str, int &i)
+{
+  int len = str.length();
+
+  int n = 0;
+
+  while (i < len && str[i].isSpace()) {
+    ++i; ++n;
+  }
+
+  return n;
+}
+
+int
+CMarkdownParse::
+backSkipSpace(const QString &str, int &i)
+{
+  int n = 0;
+
+  while (i >= 0 && str[i].isSpace()) {
+    --i; ++n;
+  }
+
+  return n;
+}
+
+int
+CMarkdownParse::
+skipChar(const QString &str, int &i, const QChar &c)
+{
+  int len = str.length();
+
+  int n = 0;
+
+  while (i < len && str[i] == c) {
+    ++i; ++n;
+  }
+
+  return n;
+}
+
+int
+CMarkdownParse::
+backSkipChar(const QString &str, int &i, const QChar &c)
+{
+  int n = 0;
+
+  while (i >= 0 && str[i] == c) {
+    --i; ++n;
+  }
+
+  return n;
+}
+
