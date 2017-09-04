@@ -1116,11 +1116,20 @@ replaceEmbeddedStyles(const QString &str) const
             str3 = str3.simplified();
 
             // TODO: title
-            if (str4 != "")
-              str1 += QString("<img src=\"%1\" title=\"%2\" alt=\"%3\"/>").
-                        arg(str3).arg(str4).arg(str2);
-            else
-              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+            if (str4 != "") {
+              if (str2 != "")
+                str1 += QString("<img src=\"%1\" title=\"%2\" alt=\"%3\"/>").
+                          arg(str3).arg(str4).arg(str2);
+              else
+                str1 += QString("<img src=\"%1\" title=\"%2\"/>").
+                          arg(str3).arg(str4);
+            }
+            else {
+              if (str2 != "")
+                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+              else
+                str1 += QString("<img src=\"%1\"/>").arg(str3);
+            }
           }
           else {
             i = i1;
@@ -1137,7 +1146,10 @@ replaceEmbeddedStyles(const QString &str) const
           if (i < len && str[i] == ']') {
             ++i;
 
-            str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+            if (str2 != "")
+              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+            else
+              str1 += QString("<img src=\"%1\"/>").arg(str3);
           }
           else {
             i = i1;
@@ -1149,12 +1161,22 @@ replaceEmbeddedStyles(const QString &str) const
           LinkRef ref;
 
           if (markdown()->getLink(str2, ref)) {
-            if (ref.title != "")
-              str1 += QString("<img src=\"%1\" alt=\"%2\" title=\"%3\"/>").
-                       arg(ref.dest).arg(ref.ref).arg(ref.title);
-            else
-              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").
-                       arg(ref.dest).arg(ref.ref);
+            if (ref.title != "") {
+              if (ref.ref != "")
+                str1 += QString("<img src=\"%1\" alt=\"%2\" title=\"%3\"/>").
+                         arg(ref.dest).arg(ref.ref).arg(ref.title);
+              else
+                str1 += QString("<img src=\"%1\" title=\"%3\"/>").
+                         arg(ref.dest).arg(ref.title);
+            }
+            else {
+              if (ref.ref != "")
+                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").
+                         arg(ref.dest).arg(ref.ref);
+              else
+                str1 += QString("<img src=\"%1\"/>").
+                         arg(ref.dest);
+            }
           }
           else {
             i = i1;

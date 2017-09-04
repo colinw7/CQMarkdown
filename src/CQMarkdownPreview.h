@@ -7,6 +7,11 @@
 #include <map>
 
 class CQMarkdown;
+
+#ifdef USE_WEB_VIEW
+class QWebView;
+#endif
+
 class QTextEdit;
 
 class CQMarkdownPreview : public QTabWidget {
@@ -19,9 +24,16 @@ class CQMarkdownPreview : public QTabWidget {
 
  private:
   CQMarkdown *markdown_;
+
+#ifdef USE_WEB_VIEW
+  QWebView   *markHtmlEdit_;
+  QWebView   *refHtmlEdit_;
+#else
   QTextEdit  *markHtmlEdit_;
-  QTextEdit  *markTextEdit_;
   QTextEdit  *refHtmlEdit_;
+#endif
+
+  QTextEdit  *markTextEdit_;
   QTextEdit  *refTextEdit_;
   CMarkdown   mark_;
   QString     html_;

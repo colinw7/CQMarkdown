@@ -18,6 +18,8 @@
 #include <svg/h6_svg.h>
 #include <svg/ul_svg.h>
 #include <svg/ol_svg.h>
+#include <svg/link_svg.h>
+#include <svg/image_svg.h>
 
 class CQMarkdownEditSyntaxHighlight : public QSyntaxHighlighter {
  public:
@@ -350,6 +352,30 @@ olSlot()
   edit_->textCursor().insertText(" 1. ");
 }
 
+void
+CQMarkdownEdit::
+linkSlot()
+{
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  QString text1 = "[link](" + text + ")";
+
+  edit_->textCursor().insertText(text1);
+}
+
+void
+CQMarkdownEdit::
+imageSlot()
+{
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  QString text1 = "![alt](" + text + " \"desc\")";
+
+  edit_->textCursor().insertText(text1);
+}
+
 QSize
 CQMarkdownEdit::
 sizeHint() const
@@ -435,6 +461,24 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   connect(olButton_, SIGNAL(clicked()), edit_, SLOT(olSlot()));
 
   layout->addWidget(olButton_);
+
+  //---
+
+  linkButton_ = new QToolButton;
+  linkButton_->setIcon(CQPixmapCacheInst->getIcon("LINK"));
+
+  connect(linkButton_, SIGNAL(clicked()), edit_, SLOT(linkSlot()));
+
+  layout->addWidget(linkButton_);
+
+  //---
+
+  imageButton_ = new QToolButton;
+  imageButton_->setIcon(CQPixmapCacheInst->getIcon("IMAGE"));
+
+  connect(imageButton_, SIGNAL(clicked()), edit_, SLOT(imageSlot()));
+
+  layout->addWidget(imageButton_);
 
   //---
 

@@ -32,6 +32,8 @@ class CQMarkdownEdit : public QFrame {
   void headerSlot();
   void ulSlot();
   void olSlot();
+  void linkSlot();
+  void imageSlot();
 
  private slots:
   void updateSlot();
@@ -66,6 +68,8 @@ class CQMarkdownEditToolBar : public QFrame {
   HeaderButtons   hButtons_;
   QToolButton    *ulButton_     { nullptr };
   QToolButton    *olButton_     { nullptr };
+  QToolButton    *linkButton_   { nullptr };
+  QToolButton    *imageButton_  { nullptr };
 };
 
 //------
