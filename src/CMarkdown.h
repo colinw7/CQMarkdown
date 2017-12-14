@@ -39,7 +39,7 @@ class CMarkdown {
   int     len_ { 0 }; // input string length
   int     pos_ { 0 }; // input string position
 
-  bool            debug_ { false };
+  bool            debug_     { false };
   CMarkdownBlock *rootBlock_ { nullptr };
   Links           links_;
 };
