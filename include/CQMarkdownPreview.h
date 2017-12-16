@@ -16,7 +16,9 @@ class QTextEdit;
 
 class CQMarkdownPreview : public QTabWidget {
  public:
-  CQMarkdownPreview(CQMarkdown *markdown);
+  CQMarkdownPreview(CQMarkdown *markdown, bool ref=false);
+
+  const QString &html() const { return html_; }
 
   void updateText();
 
@@ -26,15 +28,15 @@ class CQMarkdownPreview : public QTabWidget {
   CQMarkdown *markdown_;
 
 #ifdef USE_WEB_VIEW
-  QWebView   *markHtmlEdit_;
-  QWebView   *refHtmlEdit_;
+  QWebView   *markHtmlEdit_ { nullptr };
+  QWebView   *refHtmlEdit_  { nullptr };
 #else
-  QTextEdit  *markHtmlEdit_;
-  QTextEdit  *refHtmlEdit_;
+  QTextEdit  *markHtmlEdit_ { nullptr };
+  QTextEdit  *refHtmlEdit_  { nullptr };
 #endif
 
-  QTextEdit  *markTextEdit_;
-  QTextEdit  *refTextEdit_;
+  QTextEdit  *markTextEdit_ { nullptr };
+  QTextEdit  *refTextEdit_  { nullptr };
   CMarkdown   mark_;
   QString     html_;
 };

@@ -5,11 +5,13 @@
 #include <QTextStream>
 
 CQMarkdown::
-CQMarkdown(QWidget *parent) :
+CQMarkdown(QWidget *parent, bool ref) :
  QSplitter(parent), filename_("")
 {
+  setObjectName("markdown");
+
   edit_    = new CQMarkdownEdit(this);
-  preview_ = new CQMarkdownPreview(this);
+  preview_ = new CQMarkdownPreview(this, ref);
 
   addWidget(edit_);
   addWidget(preview_);
@@ -35,12 +37,17 @@ load(const QString &filename)
 
 bool
 CQMarkdown::
-save()
+saveMarkdown(const QString &filename)
 {
-  if (filename_ == "")
+  QString filename1 = filename;
+
+  if (filename1 == "")
+    filename1 = filename_;
+
+  if (filename1 == "")
     return false;
 
-  QFile file(filename_);
+  QFile file(filename1);
 
   file.open(QIODevice::WriteOnly);
 
@@ -50,6 +57,29 @@ save()
   QTextStream outStream(&file);
 
   outStream << edit_->text();
+
+  file.close();
+
+  return true;
+}
+
+bool
+CQMarkdown::
+saveHtml(const QString &filename)
+{
+  if (filename == "")
+    return false;
+
+  QFile file(filename);
+
+  file.open(QIODevice::WriteOnly);
+
+  if (! file.isOpen())
+    return false;
+
+  QTextStream outStream(&file);
+
+  outStream << preview_->html();
 
   file.close();
 

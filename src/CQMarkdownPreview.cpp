@@ -31,25 +31,54 @@ QString runMarkdown(const QString &str) {
 //---
 
 CQMarkdownPreview::
-CQMarkdownPreview(CQMarkdown *markdown) :
+CQMarkdownPreview(CQMarkdown *markdown, bool ref) :
  QTabWidget(markdown), markdown_(markdown)
 {
-#ifdef USE_WEB_VIEW
-  addTab(markHtmlEdit_ = new QWebView , "Mark-HTML");
-  addTab(refHtmlEdit_  = new QWebView , "Ref-HTML" );
-#else
-  addTab(markHtmlEdit_ = new QTextEdit, "Mark-HTML");
-  addTab(refHtmlEdit_  = new QTextEdit, "Ref-HTML" );
+  setObjectName("preview");
 
-  markHtmlEdit_->setReadOnly(true);
-  refHtmlEdit_ ->setReadOnly(true);
+#ifdef USE_WEB_VIEW
+  if (ref) {
+    addTab(markHtmlEdit_ = new QWebView, "Mark-HTML");
+    addTab(refHtmlEdit_  = new QWebView, "Ref-HTML" );
+  }
+  else {
+    addTab(markHtmlEdit_ = new QWebView, "HTML");
+  }
+#else
+  if (ref) {
+    addTab(markHtmlEdit_ = new QTextEdit, "Mark-HTML");
+    addTab(refHtmlEdit_  = new QTextEdit, "Ref-HTML" );
+
+    markHtmlEdit_->setReadOnly(true);
+    refHtmlEdit_ ->setReadOnly(true);
+  }
+  else {
+    addTab(markHtmlEdit_ = new QTextEdit, "HTML");
+
+    markHtmlEdit_->setReadOnly(true);
+  }
 #endif
 
-  addTab(markTextEdit_ = new QTextEdit, "Mark-Text");
-  addTab(refTextEdit_  = new QTextEdit, "Ref-Text" );
+  if (ref) {
+    addTab(markTextEdit_ = new QTextEdit, "Mark-Text");
+    addTab(refTextEdit_  = new QTextEdit, "Ref-Text" );
 
-  markTextEdit_->setReadOnly(true);
-  refTextEdit_ ->setReadOnly(true);
+    markTextEdit_->setReadOnly(true);
+    refTextEdit_ ->setReadOnly(true);
+  }
+  else {
+    addTab(markTextEdit_ = new QTextEdit, "Text");
+
+    markTextEdit_->setReadOnly(true);
+  }
+
+  markHtmlEdit_->setObjectName("markHtmlEdit");
+  markTextEdit_->setObjectName("markTextEdit");
+
+  if (ref) {
+    refHtmlEdit_->setObjectName("refHtmlEdit");
+    refTextEdit_->setObjectName("refTextEdit");
+  }
 
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
@@ -60,14 +89,20 @@ updateText()
 {
   QString str = markdown_->text();
 
-  QString refHtml = runMarkdown(str);
+  if (refHtmlEdit_ || refTextEdit_) {
+    QString refHtml = runMarkdown(str);
 
+    if (refHtmlEdit_) {
 #ifdef USE_WEB_VIEW
-  refHtmlEdit_->setHtml(refHtml);
+      refHtmlEdit_->setHtml(refHtml);
 #else
-  refHtmlEdit_->setHtml(refHtml);
+      refHtmlEdit_->setHtml(refHtml);
 #endif
-  refTextEdit_->setPlainText(refHtml);
+    }
+
+    if (refTextEdit_)
+      refTextEdit_->setPlainText(refHtml);
+  }
 
   html_ = mark_.processText(str);
 
@@ -83,5 +118,5 @@ QSize
 CQMarkdownPreview::
 sizeHint() const
 {
-  return QSize(500, 600);
+  return QSize(800, 1200);
 }

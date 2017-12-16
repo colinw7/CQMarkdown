@@ -9,13 +9,17 @@ class CQMarkdownMain : public QMainWindow {
   Q_OBJECT
 
  public:
-  CQMarkdownMain();
+  CQMarkdownMain(bool ref=false);
 
   void load(const QString &filename);
 
  private slots:
-  void saveSlot();
+  void saveMarkdownSlot();
+  void saveHtmlSlot();
+
   void exitSlot();
+
+  void fixedFontSlot(bool);
 
  private:
   CQMarkdown *markdown_;

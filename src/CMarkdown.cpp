@@ -1,6 +1,7 @@
 #include <CMarkdown.h>
 #include <QFile>
 #include <QTextStream>
+#include <QUrl>
 #include <set>
 #include <iostream>
 #include <cassert>
@@ -1119,16 +1120,16 @@ replaceEmbeddedStyles(const QString &str) const
             if (str4 != "") {
               if (str2 != "")
                 str1 += QString("<img src=\"%1\" title=\"%2\" alt=\"%3\"/>").
-                          arg(str3).arg(str4).arg(str2);
+                          arg(imageSrc(str3)).arg(str4).arg(str2);
               else
                 str1 += QString("<img src=\"%1\" title=\"%2\"/>").
-                          arg(str3).arg(str4);
+                          arg(imageSrc(str3)).arg(str4);
             }
             else {
               if (str2 != "")
-                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(imageSrc(str3)).arg(str2);
               else
-                str1 += QString("<img src=\"%1\"/>").arg(str3);
+                str1 += QString("<img src=\"%1\"/>").arg(imageSrc(str3));
             }
           }
           else {
@@ -1147,9 +1148,9 @@ replaceEmbeddedStyles(const QString &str) const
             ++i;
 
             if (str2 != "")
-              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(str3).arg(str2);
+              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(imageSrc(str3)).arg(str2);
             else
-              str1 += QString("<img src=\"%1\"/>").arg(str3);
+              str1 += QString("<img src=\"%1\"/>").arg(imageSrc(str3));
           }
           else {
             i = i1;
@@ -1164,18 +1165,18 @@ replaceEmbeddedStyles(const QString &str) const
             if (ref.title != "") {
               if (ref.ref != "")
                 str1 += QString("<img src=\"%1\" alt=\"%2\" title=\"%3\"/>").
-                         arg(ref.dest).arg(ref.ref).arg(ref.title);
+                         arg(imageSrc(ref.dest)).arg(ref.ref).arg(ref.title);
               else
                 str1 += QString("<img src=\"%1\" title=\"%3\"/>").
-                         arg(ref.dest).arg(ref.title);
+                         arg(imageSrc(ref.dest)).arg(ref.title);
             }
             else {
               if (ref.ref != "")
                 str1 += QString("<img src=\"%1\" alt=\"%2\"/>").
-                         arg(ref.dest).arg(ref.ref);
+                         arg(imageSrc(ref.dest)).arg(ref.ref);
               else
                 str1 += QString("<img src=\"%1\"/>").
-                         arg(ref.dest);
+                         arg(imageSrc(ref.dest));
             }
           }
           else {
@@ -1318,6 +1319,14 @@ replaceEmbeddedStyles(const QString &str) const
   }
 
   return str1;
+}
+
+QString
+CMarkdownBlock::
+imageSrc(const QString &filename) const
+{
+  return QUrl::fromLocalFile(filename).toEncoded();
+  //return QString("file:%1").arg(filename);
 }
 
 void

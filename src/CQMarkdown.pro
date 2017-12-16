@@ -1,50 +1,36 @@
-TEMPLATE = app
-
-QT += widgets
+TEMPLATE = lib
 
 TARGET = CQMarkdown
 
+QT += widgets
+
 DEPENDPATH += .
 
-INCLUDEPATH += . ../include
+QMAKE_CXXFLAGS += -std=c++11
 
-QMAKE_CXXFLAGS += -std=c++11 -DGNUPLOT_EXPR
+MOC_DIR = .moc
 
-CONFIG += debug
+CONFIG += staticlib
 
-# Input
 SOURCES += \
 CMarkdown.cpp \
 CQMarkdown.cpp \
 CQMarkdownEdit.cpp \
-CQMarkdownMain.cpp \
 CQMarkdownPreview.cpp \
-main.cpp \
 
 HEADERS += \
-CMarkdown.h \
-CQMarkdownEdit.h \
-CQMarkdown.h \
-CQMarkdownMain.h \
-CQMarkdownPreview.h \
+../include/CMarkdown.h \
+../include/CQMarkdownEdit.h \
+../include/CQMarkdown.h \
+../include/CQMarkdownPreview.h \
 
-DESTDIR     = ../bin
+DESTDIR     = ../lib
 OBJECTS_DIR = ../obj
 LIB_DIR     = ../lib
 
 INCLUDEPATH += \
 . \
+../include \
 ../../CQUtil/include \
 ../../CCommand/include \
 ../../CUtil/include \
-
-unix:LIBS += \
--L$$LIB_DIR \
--L../../CQUtil/lib \
--L../../CCommand/lib \
--L../../CReadLine/lib \
--L../../CStrUtil/lib \
--L../../CFile/lib \
--L../../COS/lib \
--lCQUtil -lCCommand -lCReadLine -lCFile -lCStrUtil -lCOS \
--lreadline -lcurses

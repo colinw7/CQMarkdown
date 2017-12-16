@@ -163,6 +163,8 @@ class CMarkdownBlock {
 
   QString replaceEmbeddedStyles(const QString &str) const;
 
+  QString imageSrc(const QString &filename) const;
+
   void splitLinkRef(const QString &str, QString &href, QString &title) const;
 
   QString replaceHtmlChars(const QString &str) const;

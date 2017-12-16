@@ -380,7 +380,7 @@ QSize
 CQMarkdownEdit::
 sizeHint() const
 {
-  return QSize(500, 600);
+  return QSize(800, 1200);
 }
 
 //------
@@ -399,6 +399,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   normalButton_ = new QToolButton;
+
+  normalButton_->setObjectName("normal");
   normalButton_->setIcon(CQPixmapCacheInst->getIcon("NORMAL"));
 
   connect(normalButton_, SIGNAL(clicked()), edit_, SLOT(normalSlot()));
@@ -408,6 +410,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   boldButton_ = new QToolButton;
+
+  boldButton_->setObjectName("bold");
   boldButton_->setIcon(CQPixmapCacheInst->getIcon("BOLD"));
 
   connect(boldButton_, SIGNAL(clicked()), edit_, SLOT(boldSlot()));
@@ -417,6 +421,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   italicButton_ = new QToolButton;
+
+  italicButton_->setObjectName("italic");
   italicButton_->setIcon(CQPixmapCacheInst->getIcon("ITALIC"));
 
   connect(italicButton_, SIGNAL(clicked()), edit_, SLOT(italicSlot()));
@@ -433,6 +439,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
 
   for (int i = 0; i < 6; ++i) {
     hButtons_[i] = new QToolButton;
+
+    hButtons_[i]->setObjectName(QString("hbutton%1").arg(i + 1));
     hButtons_[i]->setIcon(CQPixmapCacheInst->getIcon(QString("H%1").arg(i + 1)));
 
     connect(hButtons_[i], SIGNAL(clicked()), edit_, SLOT(headerSlot()));
@@ -447,6 +455,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   ulButton_ = new QToolButton;
+
+  ulButton_->setObjectName("ul");
   ulButton_->setIcon(CQPixmapCacheInst->getIcon("UL"));
 
   connect(ulButton_, SIGNAL(clicked()), edit_, SLOT(ulSlot()));
@@ -456,6 +466,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   olButton_ = new QToolButton;
+
+  olButton_->setObjectName("ol");
   olButton_->setIcon(CQPixmapCacheInst->getIcon("OL"));
 
   connect(olButton_, SIGNAL(clicked()), edit_, SLOT(olSlot()));
@@ -465,6 +477,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   linkButton_ = new QToolButton;
+
+  linkButton_->setObjectName("link");
   linkButton_->setIcon(CQPixmapCacheInst->getIcon("LINK"));
 
   connect(linkButton_, SIGNAL(clicked()), edit_, SLOT(linkSlot()));
@@ -474,6 +488,8 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   //---
 
   imageButton_ = new QToolButton;
+
+  imageButton_->setObjectName("image");
   imageButton_->setIcon(CQPixmapCacheInst->getIcon("IMAGE"));
 
   connect(imageButton_, SIGNAL(clicked()), edit_, SLOT(imageSlot()));
