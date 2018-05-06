@@ -1,2 +1,1 @@
-# CQMarkdown
-Qt Markdown view and Markdown implementation
+doc/README.md
