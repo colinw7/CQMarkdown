@@ -1,5 +1,5 @@
 ## ToDo
-
   + Style buttons on editor
   + Image insert ... button
   + Text Find
+  + List selected items and press button should keep text
