@@ -7,6 +7,8 @@
   and output of an external command ('markdown' by default'). The external command can be
   overriden using the environment variable 'CQMARKDOWN_EXEC'
 
+![screenshot](CQMarkdown.png "Qt Markdown Interface")
+
 ## Generator
 
 The Markdown to Html generator is written to conform to [CommonMark](http://commonmark.org)
