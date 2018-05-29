@@ -1,6 +1,7 @@
 #include <CQMarkdownEdit.h>
 #include <CQMarkdown.h>
 #include <CMarkdown.h>
+#include <CQStrParse.h>
 
 #include <QSyntaxHighlighter>
 #include <QToolButton>
@@ -243,6 +244,27 @@ normalSlot()
   QString text = edit_->textCursor().selectedText();
   if (text.isEmpty()) return;
 
+  CQStrParse parse(text);
+
+  parse.skipSpace();
+
+  // get first non-highlight char position
+  while (! parse.eof() && (parse.isChar('*') || parse.isChar('_')))
+    parse.skipChar();
+
+  int i1 = parse.getPos();
+
+  // get last non-highlight char position
+  parse.setPos(parse.getLen() - 1);
+
+  parse.backSkipSpace();
+
+  while (! parse.eof() && (parse.isChar('*') || parse.isChar('_')))
+    parse.backSkipChar();
+
+  int i2 = parse.getPos();
+
+#if 0
   int i   = 0;
   int len = text.length();
 
@@ -263,6 +285,7 @@ normalSlot()
     --i;
 
   int i2 = i;
+#endif
 
   QString text1 = text.mid(i1, i2 - i1 + 1);
 
@@ -342,14 +365,71 @@ void
 CQMarkdownEdit::
 ulSlot()
 {
-  edit_->textCursor().insertText(" + ");
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  text.replace("\u2029", "\n");
+
+  QStringList lines = text.split("\n");
+
+  for (int i = 0; i < lines.size(); ++i) {
+    lines[i] = removeListChars(lines[i]);
+
+    lines[i] = " + " + lines[i];
+  }
+
+  edit_->textCursor().insertText(lines.join("\n"));
 }
 
 void
 CQMarkdownEdit::
 olSlot()
 {
-  edit_->textCursor().insertText(" 1. ");
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  text.replace("\u2029", "\n");
+
+  QStringList lines = text.split("\n");
+
+  for (int i = 0; i < lines.size(); ++i) {
+    lines[i] = removeListChars(lines[i]);
+
+    lines[i] = QString(" %1. ").arg(i + 1) + lines[i];
+  }
+
+  edit_->textCursor().insertText(lines.join("\n"));
+}
+
+QString
+CQMarkdownEdit::
+removeListChars(const QString &str) const
+{
+  CQStrParse parse(str);
+
+  parse.skipSpace();
+
+  if (parse.isChar('+')) {
+    parse.skipChar();
+
+    parse.skipSpace();
+
+    return parse.getAt();
+  }
+  else if (parse.isDigit()) {
+    while (parse.isDigit())
+      parse.skipChar();
+
+    if (parse.isChar('.')) {
+      parse.skipChar();
+
+      parse.skipSpace();
+
+      return parse.getAt();
+    }
+  }
+
+  return str;
 }
 
 void
@@ -385,6 +465,18 @@ sizeHint() const
 
 //------
 
+class CQMarkdownToolButton : public QToolButton {
+ public:
+  CQMarkdownToolButton(CQMarkdownEditToolBar *toolbar, const QString &name,
+                       const QString &iconName, const QString &tip, const char *slotName) {
+    setObjectName(name);
+    setIcon(CQPixmapCacheInst->getIcon(iconName));
+    setToolTip(tip);
+
+    QObject::connect(this, SIGNAL(clicked()), toolbar->edit(), slotName);
+  }
+};
+
 CQMarkdownEditToolBar::
 CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
  QFrame(edit), edit_(edit)
@@ -398,34 +490,22 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
 
   //---
 
-  normalButton_ = new QToolButton;
-
-  normalButton_->setObjectName("normal");
-  normalButton_->setIcon(CQPixmapCacheInst->getIcon("NORMAL"));
-
-  connect(normalButton_, SIGNAL(clicked()), edit_, SLOT(normalSlot()));
+  normalButton_ =
+    new CQMarkdownToolButton(this, "normal", "NORMAL", "Normal Text", SLOT(normalSlot()));
 
   layout->addWidget(normalButton_);
 
   //---
 
-  boldButton_ = new QToolButton;
-
-  boldButton_->setObjectName("bold");
-  boldButton_->setIcon(CQPixmapCacheInst->getIcon("BOLD"));
-
-  connect(boldButton_, SIGNAL(clicked()), edit_, SLOT(boldSlot()));
+  boldButton_ =
+    new CQMarkdownToolButton(this, "bold", "BOLD", "Bold Text", SLOT(boldSlot()));
 
   layout->addWidget(boldButton_);
 
   //---
 
-  italicButton_ = new QToolButton;
-
-  italicButton_->setObjectName("italic");
-  italicButton_->setIcon(CQPixmapCacheInst->getIcon("ITALIC"));
-
-  connect(italicButton_, SIGNAL(clicked()), edit_, SLOT(italicSlot()));
+  italicButton_ =
+    new CQMarkdownToolButton(this, "italic", "ITALIC", "Italic Text", SLOT(italicSlot()));
 
   layout->addWidget(italicButton_);
 
@@ -438,12 +518,9 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
   hButtons_.resize(6);
 
   for (int i = 0; i < 6; ++i) {
-    hButtons_[i] = new QToolButton;
-
-    hButtons_[i]->setObjectName(QString("hbutton%1").arg(i + 1));
-    hButtons_[i]->setIcon(CQPixmapCacheInst->getIcon(QString("H%1").arg(i + 1)));
-
-    connect(hButtons_[i], SIGNAL(clicked()), edit_, SLOT(headerSlot()));
+    hButtons_[i] = new CQMarkdownToolButton(this,
+      QString("hbutton%1").arg(i + 1), QString("H%1").arg(i + 1),
+      QString("Heading %1").arg(i + 1), SLOT(headerSlot()));
 
     layout->addWidget(hButtons_[i]);
   }
@@ -454,45 +531,29 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
 
   //---
 
-  ulButton_ = new QToolButton;
-
-  ulButton_->setObjectName("ul");
-  ulButton_->setIcon(CQPixmapCacheInst->getIcon("UL"));
-
-  connect(ulButton_, SIGNAL(clicked()), edit_, SLOT(ulSlot()));
+  ulButton_ =
+    new CQMarkdownToolButton(this, "ul", "UL", "Unordered List", SLOT(ulSlot()));
 
   layout->addWidget(ulButton_);
 
   //---
 
-  olButton_ = new QToolButton;
-
-  olButton_->setObjectName("ol");
-  olButton_->setIcon(CQPixmapCacheInst->getIcon("OL"));
-
-  connect(olButton_, SIGNAL(clicked()), edit_, SLOT(olSlot()));
+  olButton_ =
+    new CQMarkdownToolButton(this, "ol", "OL", "Ordered List", SLOT(olSlot()));
 
   layout->addWidget(olButton_);
 
   //---
 
-  linkButton_ = new QToolButton;
-
-  linkButton_->setObjectName("link");
-  linkButton_->setIcon(CQPixmapCacheInst->getIcon("LINK"));
-
-  connect(linkButton_, SIGNAL(clicked()), edit_, SLOT(linkSlot()));
+  linkButton_ =
+    new CQMarkdownToolButton(this, "link", "LINK", "Link", SLOT(linkSlot()));
 
   layout->addWidget(linkButton_);
 
   //---
 
-  imageButton_ = new QToolButton;
-
-  imageButton_->setObjectName("image");
-  imageButton_->setIcon(CQPixmapCacheInst->getIcon("IMAGE"));
-
-  connect(imageButton_, SIGNAL(clicked()), edit_, SLOT(imageSlot()));
+  imageButton_ =
+    new CQMarkdownToolButton(this, "image", "IMAGE", "Image", SLOT(imageSlot()));
 
   layout->addWidget(imageButton_);
 
@@ -535,4 +596,18 @@ CQMarkdownEditText(CQMarkdownEdit *edit) :
   setObjectName("text");
 
   highlighter_ = new CQMarkdownEditSyntaxHighlight(this);
+}
+
+void
+CQMarkdownEditText::
+keyPressEvent(QKeyEvent *e)
+{
+  QKeySequence k(e->key() | e->modifiers());
+
+  if      (k == QKeySequence("Ctrl+B"))
+    edit_->boldSlot();
+  else if (k == QKeySequence("Ctrl+I"))
+    edit_->italicSlot();
+  else if (k == QKeySequence("Ctrl+Space"))
+    edit_->normalSlot();
 }

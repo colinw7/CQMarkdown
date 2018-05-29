@@ -35,6 +35,9 @@ class CQMarkdownEdit : public QFrame {
   void linkSlot();
   void imageSlot();
 
+ private:
+  QString removeListChars(const QString &str) const;
+
  private slots:
   void updateSlot();
   void selectionSlot();
@@ -53,6 +56,8 @@ class CQMarkdownEditToolBar : public QFrame {
 
  public:
   CQMarkdownEditToolBar(CQMarkdownEdit *edit);
+
+  CQMarkdownEdit *edit() const { return edit_; }
 
   void updateState(bool selected);
 
@@ -79,6 +84,8 @@ class CQMarkdownEditText : public QTextEdit {
 
  public:
   CQMarkdownEditText(CQMarkdownEdit *edit);
+
+  void keyPressEvent(QKeyEvent *e);
 
  private:
   CQMarkdownEdit                *edit_ { nullptr };
