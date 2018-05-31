@@ -610,4 +610,6 @@ keyPressEvent(QKeyEvent *e)
     edit_->italicSlot();
   else if (k == QKeySequence("Ctrl+Space"))
     edit_->normalSlot();
+  else
+    QTextEdit::keyPressEvent(e);
 }
