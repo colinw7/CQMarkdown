@@ -161,7 +161,7 @@ class CMarkdownBlock {
 
   void parseLine(const QString &line);
 
-  QString replaceEmbeddedStyles(const QString &str) const;
+  QString replaceEmbeddedStyles(const QString &str, bool code=false) const;
 
   QString imageSrc(const QString &filename) const;
 

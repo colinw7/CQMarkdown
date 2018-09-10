@@ -992,7 +992,7 @@ parseTableLine(const QString &str)
 
 QString
 CMarkdownBlock::
-replaceEmbeddedStyles(const QString &str) const
+replaceEmbeddedStyles(const QString &str, bool code) const
 {
   QString str1;
 
@@ -1020,7 +1020,7 @@ replaceEmbeddedStyles(const QString &str) const
         str1 += str[i++];
     }
     // emphasis
-    else if (str[i] == '*' || str[i] == '_') {
+    else if (! code && (str[i] == '*' || str[i] == '_')) {
       QString str2;
       int     start2;
 
@@ -1039,7 +1039,7 @@ replaceEmbeddedStyles(const QString &str) const
       }
     }
     // strike
-    else if (i < len - 1 && str[i] == '~' && str[i + 1] == '~') {
+    else if (! code && (i < len - 1 && str[i] == '~' && str[i + 1] == '~')) {
       QString str2;
       int     start2;
 
@@ -1056,14 +1056,14 @@ replaceEmbeddedStyles(const QString &str) const
       }
     }
     // code
-    else if (str[i] == '`') {
+    else if (! code && (str[i] == '`')) {
       QString str2;
       int     start2;
 
       int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 0) {
-        QString str3 = replaceEmbeddedStyles(str2);
+        QString str3 = replaceEmbeddedStyles(str2, /*code*/true);
 
         str1 += QString("<code>%1</code>").arg(str3);
       }
@@ -1072,7 +1072,7 @@ replaceEmbeddedStyles(const QString &str) const
       }
     }
     // image link
-    else if (i < len - 1 && str[i] == '!' && str[i + 1] == '[') {
+    else if (! code && (i < len - 1 && str[i] == '!' && str[i + 1] == '[')) {
       int i1 = i;
 
       i += 2;
@@ -1193,7 +1193,7 @@ replaceEmbeddedStyles(const QString &str) const
       }
     }
     // link
-    else if (str[i] == '[') {
+    else if (! code && str[i] == '[') {
       int i1 = i;
 
       ++i;
