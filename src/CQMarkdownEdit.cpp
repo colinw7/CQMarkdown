@@ -19,6 +19,8 @@
 #include <svg/h6_svg.h>
 #include <svg/ul_svg.h>
 #include <svg/ol_svg.h>
+#include <svg/indent_svg.h>
+#include <svg/outdent_svg.h>
 #include <svg/link_svg.h>
 #include <svg/image_svg.h>
 
@@ -401,6 +403,83 @@ olSlot()
   edit_->textCursor().insertText(lines.join("\n"));
 }
 
+void
+CQMarkdownEdit::
+indentSlot()
+{
+  QTextCursor cursor = edit_->textCursor();
+
+  int pos = cursor.position();
+
+  cursor.movePosition(QTextCursor::StartOfLine, QTextCursor::MoveAnchor);
+
+  cursor.setPosition(pos, QTextCursor::KeepAnchor);
+
+  cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+
+  edit_->setTextCursor(cursor);
+
+  //---
+
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  text.replace("\u2029", "\n");
+
+  QStringList lines = text.split("\n");
+
+  for (int i = 0; i < lines.size(); ++i) {
+    lines[i] = QString("  ") + lines[i];
+  }
+
+  edit_->textCursor().insertText(lines.join("\n"));
+
+  //---
+
+  cursor.setPosition(pos, QTextCursor::MoveAnchor);
+
+  edit_->setTextCursor(cursor);
+}
+
+void
+CQMarkdownEdit::
+outdentSlot()
+{
+  QTextCursor cursor = edit_->textCursor();
+
+  int pos = cursor.position();
+
+  cursor.movePosition(QTextCursor::StartOfLine, QTextCursor::MoveAnchor);
+
+  cursor.setPosition(pos, QTextCursor::KeepAnchor);
+
+  cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+
+  edit_->setTextCursor(cursor);
+
+  //---
+
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  text.replace("\u2029", "\n");
+
+  QStringList lines = text.split("\n");
+
+  for (int i = 0; i < lines.size(); ++i) {
+    if (lines[i].length() > 2 && lines[i][0].isSpace() && lines[i][1].isSpace())
+      lines[i] = lines[i].mid(2);
+  }
+
+  edit_->textCursor().insertText(lines.join("\n"));
+
+  //---
+
+  cursor.setPosition(pos, QTextCursor::MoveAnchor);
+
+  edit_->setTextCursor(cursor);
+}
+
 QString
 CQMarkdownEdit::
 removeListChars(const QString &str) const
@@ -542,6 +621,20 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
     new CQMarkdownToolButton(this, "ol", "OL", "Ordered List", SLOT(olSlot()));
 
   layout->addWidget(olButton_);
+
+  //---
+
+  indentButton_ =
+    new CQMarkdownToolButton(this, "indent", "INDENT", "Increase Indent", SLOT(indentSlot()));
+
+  layout->addWidget(indentButton_);
+
+  //---
+
+  outdentButton_ =
+    new CQMarkdownToolButton(this, "outdent", "OUTDENT", "Decrease Indent", SLOT(outdentSlot()));
+
+  layout->addWidget(outdentButton_);
 
   //---
 

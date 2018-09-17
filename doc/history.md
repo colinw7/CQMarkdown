@@ -10,3 +10,5 @@
  + Make reference markdown widgets optional
  + Add widget object names
  + Support fixed font for editor
+### 9/16/2018
+ + Add increate indent/decrease indent buttons

@@ -32,6 +32,8 @@ class CQMarkdownEdit : public QFrame {
   void headerSlot();
   void ulSlot();
   void olSlot();
+  void indentSlot();
+  void outdentSlot();
   void linkSlot();
   void imageSlot();
 
@@ -66,15 +68,17 @@ class CQMarkdownEditToolBar : public QFrame {
  private:
   typedef std::vector<QToolButton *> HeaderButtons;
 
-  CQMarkdownEdit *edit_         { nullptr };
-  QToolButton    *normalButton_ { nullptr };
-  QToolButton    *boldButton_   { nullptr };
-  QToolButton    *italicButton_ { nullptr };
+  CQMarkdownEdit *edit_          { nullptr };
+  QToolButton    *normalButton_  { nullptr };
+  QToolButton    *boldButton_    { nullptr };
+  QToolButton    *italicButton_  { nullptr };
   HeaderButtons   hButtons_;
-  QToolButton    *ulButton_     { nullptr };
-  QToolButton    *olButton_     { nullptr };
-  QToolButton    *linkButton_   { nullptr };
-  QToolButton    *imageButton_  { nullptr };
+  QToolButton    *ulButton_      { nullptr };
+  QToolButton    *olButton_      { nullptr };
+  QToolButton    *indentButton_  { nullptr };
+  QToolButton    *outdentButton_ { nullptr };
+  QToolButton    *linkButton_    { nullptr };
+  QToolButton    *imageButton_   { nullptr };
 };
 
 //------
