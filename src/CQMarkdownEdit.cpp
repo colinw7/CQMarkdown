@@ -19,10 +19,21 @@
 #include <svg/h6_svg.h>
 #include <svg/ul_svg.h>
 #include <svg/ol_svg.h>
+#include <svg/blockquote_svg.h>
 #include <svg/indent_svg.h>
 #include <svg/outdent_svg.h>
 #include <svg/link_svg.h>
 #include <svg/image_svg.h>
+
+namespace {
+  QStringList stringToLines(const QString &text) {
+    QString text1 = text;
+
+    text1.replace("\u2029", "\n");
+
+    return text1.split("\n");
+  }
+}
 
 class CQMarkdownEditSyntaxHighlight : public QSyntaxHighlighter {
  public:
@@ -370,9 +381,7 @@ ulSlot()
   QString text = edit_->textCursor().selectedText();
   if (text.isEmpty()) return;
 
-  text.replace("\u2029", "\n");
-
-  QStringList lines = text.split("\n");
+  QStringList lines = stringToLines(text);
 
   for (int i = 0; i < lines.size(); ++i) {
     lines[i] = removeListChars(lines[i]);
@@ -390,9 +399,7 @@ olSlot()
   QString text = edit_->textCursor().selectedText();
   if (text.isEmpty()) return;
 
-  text.replace("\u2029", "\n");
-
-  QStringList lines = text.split("\n");
+  QStringList lines = stringToLines(text);
 
   for (int i = 0; i < lines.size(); ++i) {
     lines[i] = removeListChars(lines[i]);
@@ -401,6 +408,20 @@ olSlot()
   }
 
   edit_->textCursor().insertText(lines.join("\n"));
+}
+
+void
+CQMarkdownEdit::
+blockquoteSlot()
+{
+  QString text = edit_->textCursor().selectedText();
+  if (text.isEmpty()) return;
+
+  QStringList lines = stringToLines(text);
+
+  QString text1 = "`" + text + "`";
+
+  edit_->textCursor().insertText(text1);
 }
 
 void
@@ -424,9 +445,7 @@ indentSlot()
   QString text = edit_->textCursor().selectedText();
   if (text.isEmpty()) return;
 
-  text.replace("\u2029", "\n");
-
-  QStringList lines = text.split("\n");
+  QStringList lines = stringToLines(text);
 
   for (int i = 0; i < lines.size(); ++i) {
     lines[i] = QString("  ") + lines[i];
@@ -462,9 +481,7 @@ outdentSlot()
   QString text = edit_->textCursor().selectedText();
   if (text.isEmpty()) return;
 
-  text.replace("\u2029", "\n");
-
-  QStringList lines = text.split("\n");
+  QStringList lines = stringToLines(text);
 
   for (int i = 0; i < lines.size(); ++i) {
     if (lines[i].length() > 2 && lines[i][0].isSpace() && lines[i][1].isSpace())
@@ -621,6 +638,14 @@ CQMarkdownEditToolBar(CQMarkdownEdit *edit) :
     new CQMarkdownToolButton(this, "ol", "OL", "Ordered List", SLOT(olSlot()));
 
   layout->addWidget(olButton_);
+
+  //---
+
+  blockquoteButton_ =
+    new CQMarkdownToolButton(this, "blockquote", "BLOCKQUOTE", "Blockquote",
+                             SLOT(blockquoteSlot()));
+
+  layout->addWidget(blockquoteButton_);
 
   //---
 
