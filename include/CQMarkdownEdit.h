@@ -94,7 +94,7 @@ class CQMarkdownEditText : public QTextEdit {
   void keyPressEvent(QKeyEvent *e);
 
  private:
-  CQMarkdownEdit                *edit_ { nullptr };
+  CQMarkdownEdit                *edit_        { nullptr };
   CQMarkdownEditSyntaxHighlight *highlighter_ { nullptr };
 };
 

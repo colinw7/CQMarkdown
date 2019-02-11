@@ -35,7 +35,7 @@ class CMarkdown {
  private:
   typedef std::vector<CMarkdownBlock *> Blocks;
 
-  QString str_ {   }; // input string
+  QString str_;       // input string
   int     len_ { 0 }; // input string length
   int     pos_ { 0 }; // input string position
 
@@ -197,9 +197,9 @@ class CMarkdownBlock {
  private:
   typedef std::vector<CMarkdownBlock *> Blocks;
 
-  CMarkdown*      markdown_ { nullptr };
-  CMarkdownBlock* parent_ { nullptr };
-  BlockType       type_ { BlockType::ROOT };
+  CMarkdown*      markdown_  { nullptr };
+  CMarkdownBlock* parent_    { nullptr };
+  BlockType       type_      { BlockType::ROOT };
   Lines           lines_;
   Blocks          blocks_;
   QString         html_;

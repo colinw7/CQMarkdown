@@ -110,6 +110,7 @@ class CQMarkdownEditSyntaxHighlight : public QSyntaxHighlighter {
     int len = str.length();
 
     while (i < len) {
+      // emphasis
       if (str[i] == '*' || str[i] == '_') {
         int istart = i;
 
@@ -146,6 +147,7 @@ class CQMarkdownEditSyntaxHighlight : public QSyntaxHighlighter {
         else
           ++i;
       }
+      // code block
       else if (i < len - 1 && str[i] == '~' && str[i + 1] == '~') {
         int istart = i;
 

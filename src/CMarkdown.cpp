@@ -784,7 +784,7 @@ isHtmlLine(const QString &str) const
 
   if (nameSet.empty()) {
     std::vector<QString> names = {{
-      "article", "header", "aside", "hgroup", "blockquote", "hr", "iframe", "body",
+      "article", "header", "aside", "hgroup", "blockquote", "hr", "iframe", "img", "body",
       "map", "button", "object", "canvas", "caption", "output", "col", "p", "colgroup",
       "pre", "dd", "progress", "div", "section", "dl", "table", "td", "dt", "tbody",
       "embed", "textarea", "fieldset", "tfoot", "figcaption", "th", "figure", "thead",
@@ -1956,7 +1956,12 @@ parseSurroundText(const QString &str, int &i, const QChar &c, QString &str1, int
 
   // search for matching number of end characters
   while (i < len) {
-    if (str[i] == c) {
+    if      (i < len - 1 && str[i] == '\\' && CMarkdownParse::isASCIIPunct(str[i + 1])) {
+      ++i;
+
+      str1 += str[i++];
+    }
+    else if (str[i] == c) {
       ++i;
 
       int nc1 = 1;

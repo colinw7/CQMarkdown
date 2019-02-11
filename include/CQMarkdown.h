@@ -10,7 +10,7 @@ class CQMarkdown : public QSplitter {
   Q_OBJECT
 
  public:
-  CQMarkdown(QWidget *parent=0, bool ref=false);
+  CQMarkdown(QWidget *parent=nullptr, bool ref=false);
 
   CQMarkdownEdit    *edit   () const { return edit_; }
   CQMarkdownPreview *preview() const { return preview_; }

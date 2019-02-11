@@ -42,7 +42,7 @@ CQMarkdownPreview(CQMarkdown *markdown, bool ref) :
     addTab(refHtmlEdit_  = new QWebView, "Ref-HTML" );
   }
   else {
-    addTab(markHtmlEdit_ = new QWebView, "HTML");
+    addTab(markHtmlEdit_ = new QWebView, "HTML Output");
   }
 #else
   if (ref) {
@@ -67,7 +67,7 @@ CQMarkdownPreview(CQMarkdown *markdown, bool ref) :
     refTextEdit_ ->setReadOnly(true);
   }
   else {
-    addTab(markTextEdit_ = new QTextEdit, "Text");
+    addTab(markTextEdit_ = new QTextEdit, "HTML Text");
 
     markTextEdit_->setReadOnly(true);
   }
