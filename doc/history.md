@@ -12,3 +12,6 @@
  + Support fixed font for editor
 ### 9/16/2018
  + Add increate indent/decrease indent buttons
+### 2/16/2019
+ + Add Save As
+ + Save becomes Save As when no filename yet

@@ -15,6 +15,7 @@ class CQMarkdownMain : public QMainWindow {
 
  private slots:
   void saveMarkdownSlot();
+  void saveMarkdownAsSlot();
   void saveHtmlSlot();
 
   void exitSlot();

@@ -1913,7 +1913,7 @@ isRule(const QString &str, int &istart, int &iend)
   while (i < len) {
     skipSpace(str, i);
 
-    if (str[i] != c)
+    if (i >= len || str[i] != c)
       return false;
 
     ++i; ++nc;

@@ -6,7 +6,7 @@
 
 CQMarkdown::
 CQMarkdown(QWidget *parent, bool ref) :
- QSplitter(parent), filename_("")
+ QSplitter(parent)
 {
   setObjectName("markdown");
 
@@ -19,11 +19,11 @@ CQMarkdown(QWidget *parent, bool ref) :
 
 bool
 CQMarkdown::
-load(const QString &filename)
+load(const QString &fileName)
 {
-  filename_ = filename;
+  fileName_ = fileName;
 
-  QFile file(filename_);
+  QFile file(fileName_);
 
   if (! file.open(QFile::ReadOnly | QFile::Text))
     return false;
@@ -37,17 +37,17 @@ load(const QString &filename)
 
 bool
 CQMarkdown::
-saveMarkdown(const QString &filename)
+saveMarkdown(const QString &fileName)
 {
-  QString filename1 = filename;
+  QString fileName1 = fileName;
 
-  if (filename1 == "")
-    filename1 = filename_;
+  if (fileName1 == "")
+    fileName1 = fileName_;
 
-  if (filename1 == "")
+  if (fileName1 == "")
     return false;
 
-  QFile file(filename1);
+  QFile file(fileName1);
 
   file.open(QIODevice::WriteOnly);
 
@@ -65,12 +65,12 @@ saveMarkdown(const QString &filename)
 
 bool
 CQMarkdown::
-saveHtml(const QString &filename)
+saveHtml(const QString &fileName)
 {
-  if (filename == "")
+  if (fileName == "")
     return false;
 
-  QFile file(filename);
+  QFile file(fileName);
 
   file.open(QIODevice::WriteOnly);
 

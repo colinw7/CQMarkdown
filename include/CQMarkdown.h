@@ -12,14 +12,17 @@ class CQMarkdown : public QSplitter {
  public:
   CQMarkdown(QWidget *parent=nullptr, bool ref=false);
 
+  const QString &fileName() const { return fileName_; }
+  void setFileName(const QString &v) { fileName_ = v; }
+
   CQMarkdownEdit    *edit   () const { return edit_; }
   CQMarkdownPreview *preview() const { return preview_; }
 
   bool load(const QString &filename);
 
-  bool saveMarkdown(const QString &filename="");
+  bool saveMarkdown(const QString &fileName="");
 
-  bool saveHtml(const QString &filename);
+  bool saveHtml(const QString &fileName);
 
   QString text() const;
 
@@ -27,7 +30,7 @@ class CQMarkdown : public QSplitter {
   void updatePreview();
 
  private:
-  QString            filename_;
+  QString            fileName_;
   CQMarkdownEdit    *edit_    { nullptr };
   CQMarkdownPreview *preview_ { nullptr };
 };
