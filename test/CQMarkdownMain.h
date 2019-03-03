@@ -4,6 +4,7 @@
 #include <QMainWindow>
 
 class CQMarkdown;
+class CQMarkdownConfigDlg;
 
 class CQMarkdownMain : public QMainWindow {
   Q_OBJECT
@@ -12,6 +13,9 @@ class CQMarkdownMain : public QMainWindow {
   CQMarkdownMain(bool ref=false);
 
   void load(const QString &filename);
+
+ public slots:
+  void updateText();
 
  private slots:
   void saveMarkdownSlot();
@@ -22,8 +26,11 @@ class CQMarkdownMain : public QMainWindow {
 
   void fixedFontSlot(bool);
 
+  void configSlot();
+
  private:
-  CQMarkdown *markdown_;
+  CQMarkdown*          markdown_  { nullptr };
+  CQMarkdownConfigDlg* configDlg_ { nullptr };
 };
 
 #endif

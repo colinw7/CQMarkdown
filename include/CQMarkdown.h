@@ -26,7 +26,7 @@ class CQMarkdown : public QSplitter {
 
   QString text() const;
 
- private slots:
+ public slots:
   void updatePreview();
 
  private:

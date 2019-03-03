@@ -7,33 +7,112 @@
 
 class CMarkdownBlock;
 
+//---
+
+enum class CMarkdownTagType {
+  NONE,
+  ROOT,
+  DOCUMENT,
+  BLOCKQUOTE,
+  P,
+  H1,
+  H2,
+  H3,
+  H4,
+  H5,
+  H6,
+  UL,
+  OL,
+  LI,
+  PRE,
+  CODE,
+  TABLE,
+  TR,
+  TD,
+  HR,
+  EM,
+  STRONG,
+  STRIKE,
+  A
+};
+
+//---
+
+struct CMarkdownTagData {
+  CMarkdownTagType type       { CMarkdownTagType::NONE };
+  QString          name;
+  QString          color;
+  QString          font;
+  bool             singleLine { false };
+  bool             recurse    { false };
+
+  CMarkdownTagData() { }
+
+  CMarkdownTagData(CMarkdownTagType type, const QString &name) :
+   type(type), name(name) {
+  }
+};
+
+//---
+
 class CMarkdown {
  public:
+  enum class Format {
+    HTML,
+    TTY
+  };
+
   struct LinkRef {
     QString ref;
     QString dest;
     QString title;
   };
 
-  typedef std::map<QString,LinkRef> Links;
+  using Links    = std::map<QString,LinkRef>;
+  using TagDatas = std::map<CMarkdownTagType,CMarkdownTagData>;
 
  public:
   CMarkdown();
 
+  //! get/set debug
   bool isDebug() const { return debug_; }
   void setDebug(bool d);
 
-  QString processFile(const QString &filename);
-  QString processText(const QString &str);
+  QString fileToHtml  (const QString &filename);
+  QString fileToTty   (const QString &filename);
+  QString fileToFormat(const QString &filename, Format format);
+
+  QString textToHtml  (const QString &str);
+  QString textToTty   (const QString &str);
+  QString textToFormat(const QString &str, Format format);
 
   void addLink(const LinkRef &link);
   bool getLink(const QString &ref, LinkRef &link) const;
+
+  //---
+
+  static bool isSingleLineType(CMarkdownTagType type);
+  static bool isRecurseType   (CMarkdownTagType type);
+
+  static QString typeColor(CMarkdownTagType type);
+  static void setTypeColor(CMarkdownTagType type, const QString &color);
+
+  static QString typeFont(CMarkdownTagType type);
+  static void setTypeFont(CMarkdownTagType type, const QString &font);
+
+  static QString typeName(CMarkdownTagType type);
+
+  static CMarkdownTagType stringToType(const QString &str);
+
+  static CMarkdownTagData &getTagData(CMarkdownTagType type);
+
+  static TagDatas &getTagDatas();
 
  private:
   bool readLine(QString &line);
 
  private:
-  typedef std::vector<CMarkdownBlock *> Blocks;
+  using Blocks = std::vector<CMarkdownBlock *>;
 
   QString str_;       // input string
   int     len_ { 0 }; // input string length
@@ -48,28 +127,6 @@ class CMarkdown {
 
 class CMarkdownBlock {
  public:
-  enum class BlockType {
-    ROOT,
-    DOCUMENT,
-    BLOCKQUOTE,
-    P,
-    H1,
-    H2,
-    H3,
-    H4,
-    H5,
-    H6,
-    UL,
-    OL,
-    LI,
-    PRE,
-    CODE,
-    TABLE,
-    TR,
-    TD,
-    HR,
-  };
-
   struct CodeFence {
     QChar   c;
     int     n { 0 };
@@ -100,17 +157,17 @@ class CMarkdownBlock {
   };
 
   struct ATXData {
-    BlockType type;
-    QString   text;
+    CMarkdownTagType type;
+    QString          text;
   };
 
  public:
-  typedef std::vector<Line>  Lines;
-  typedef CMarkdown::LinkRef LinkRef;
+  using Lines   = std::vector<Line>;
+  using LinkRef = CMarkdown::LinkRef;
 
  public:
   CMarkdownBlock(CMarkdown *parent);
-  CMarkdownBlock(CMarkdownBlock *parent, BlockType type);
+  CMarkdownBlock(CMarkdownBlock *parent, CMarkdownTagType type);
 
  ~CMarkdownBlock();
 
@@ -118,7 +175,7 @@ class CMarkdownBlock {
 
   CMarkdown *markdown() const { return (parent_ ? parent_->markdown() : markdown_); }
 
-  BlockType blockType() const { return type_; }
+  CMarkdownTagType blockType() const { return type_; }
 
   void addBlock(CMarkdownBlock *block);
 
@@ -128,15 +185,15 @@ class CMarkdownBlock {
 
   void preProcess();
 
-  QString process();
+  QString process(CMarkdown::Format format);
 
-  QString processLines();
+  QString processLines(CMarkdown::Format format);
 
-  QString processList(BlockType type, const ListData &list);
+  QString processList(CMarkdownTagType type, const ListData &list, CMarkdown::Format format);
 
   bool isContinuationLine(const QString &str) const;
 
-  bool isSetTextLine(const QString &str, CMarkdownBlock::BlockType &type) const;
+  bool isSetTextLine(const QString &str, CMarkdownTagType &type) const;
 
   bool isIndentLine(const QString &str, int &n) const;
 
@@ -161,7 +218,7 @@ class CMarkdownBlock {
 
   void parseLine(const QString &line);
 
-  QString replaceEmbeddedStyles(const QString &str, bool code=false) const;
+  QString replaceEmbeddedStyles(const QString &str, bool code, CMarkdown::Format format) const;
 
   QString imageSrc(const QString &filename) const;
 
@@ -176,7 +233,7 @@ class CMarkdownBlock {
   bool getLine(LineData &line);
   void ungetLine();
 
-  CMarkdownBlock *startBlock(BlockType type);
+  CMarkdownBlock *startBlock(CMarkdownTagType type);
 
   void addBlockLine(const QString &line, bool brk=false);
   void appendBlockLine(const QString &line);
@@ -187,23 +244,34 @@ class CMarkdownBlock {
 
   void print(int depth=0) const;
 
-  QString toHtml() const;
+  QString toText(CMarkdown::Format format) const;
 
-  static QString tagName(BlockType type);
+  QString anchorText(const QString &ref, const QString &title, const QString &str,
+                     CMarkdown::Format format) const;
 
-  static bool isSingleLineType(BlockType type);
-  static bool isRecurseType   (BlockType type);
+  QString emphasisText(const QString &text, CMarkdown::Format format) const;
+  QString boldText    (const QString &text, CMarkdown::Format format) const;
+  QString strikeText  (const QString &text, CMarkdown::Format format) const;
+
+  QString startTag(CMarkdownTagType type, CMarkdown::Format format) const;
+  QString endTag  (CMarkdownTagType type, CMarkdown::Format format) const;
+  QString fullTag (CMarkdownTagType type, CMarkdown::Format format) const;
+
+  QString htmlStyle(CMarkdownTagType type) const;
+
+  QString ttyStartStyle(CMarkdownTagType type) const;
+  QString ttyEndStyle  (CMarkdownTagType type) const;
 
  private:
-  typedef std::vector<CMarkdownBlock *> Blocks;
+  using Blocks = std::vector<CMarkdownBlock *>;
 
-  CMarkdown*      markdown_  { nullptr };
-  CMarkdownBlock* parent_    { nullptr };
-  BlockType       type_      { BlockType::ROOT };
-  Lines           lines_;
-  Blocks          blocks_;
-  QString         html_;
-  bool            processed_ { false };
+  CMarkdown*       markdown_  { nullptr };
+  CMarkdownBlock*  parent_    { nullptr };
+  CMarkdownTagType type_      { CMarkdownTagType::ROOT };
+  Lines            lines_;
+  Blocks           blocks_;
+  QString          processedText_;
+  bool             processed_ { false };
 
   mutable int currentLine_ { 0 };
 

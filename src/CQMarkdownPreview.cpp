@@ -104,7 +104,7 @@ updateText()
       refTextEdit_->setPlainText(refHtml);
   }
 
-  html_ = mark_.processText(str);
+  html_ = mark_.textToHtml(str);
 
 #ifdef USE_WEB_VIEW
   markHtmlEdit_->setHtml(html_);

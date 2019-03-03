@@ -15,3 +15,6 @@
 ### 2/16/2019
  + Add Save As
  + Save becomes Save As when no filename yet
+### 3/2/2019
+ + Add color/font styling
+ + Add terminal/tty output support

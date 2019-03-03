@@ -11,9 +11,11 @@ QMAKE_CXXFLAGS += -std=c++14
 SOURCES += \
 main.cpp \
 CQMarkdownMain.cpp \
+CQMarkdownConfigDlg.cpp \
 
 HEADERS += \
 CQMarkdownMain.h \
+CQMarkdownConfigDlg.h \
 
 DESTDIR     = ../bin
 OBJECTS_DIR = ../obj

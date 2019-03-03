@@ -20,7 +20,21 @@ setDebug(bool d)
 
 QString
 CMarkdown::
-processFile(const QString &filename)
+fileToHtml(const QString &filename)
+{
+  return fileToFormat(filename, Format::HTML);
+}
+
+QString
+CMarkdown::
+fileToTty(const QString &filename)
+{
+  return fileToFormat(filename, Format::TTY);
+}
+
+QString
+CMarkdown::
+fileToFormat(const QString &filename, Format format)
 {
   QFile file(filename);
 
@@ -29,12 +43,26 @@ processFile(const QString &filename)
 
   QTextStream stream(&file);
 
-  return processText(stream.readAll());
+  return textToFormat(stream.readAll(), format);
 }
 
 QString
 CMarkdown::
-processText(const QString &str)
+textToHtml(const QString &str)
+{
+  return textToFormat(str, Format::HTML);
+}
+
+QString
+CMarkdown::
+textToTty(const QString &str)
+{
+  return textToFormat(str, Format::TTY);
+}
+
+QString
+CMarkdown::
+textToFormat(const QString &str, Format format)
 {
   delete rootBlock_;
 
@@ -53,7 +81,7 @@ processText(const QString &str)
 
   rootBlock_->preProcess();
 
-  return rootBlock_->process();
+  return rootBlock_->process(format);
 }
 
 void
@@ -63,8 +91,7 @@ addLink(const LinkRef &link)
   if (isDebug())
     std::cerr << "DEBUG: Add Link: [" << link.ref.toStdString() << "]:" <<
                  link.dest.toStdString() << " " <<
-                 "'" << link.title.toStdString() << "'" <<
-                 std::endl;
+                 "'" << link.title.toStdString() << "'\n";
 
   links_[link.ref.toLower()] = link;
 }
@@ -74,7 +101,7 @@ CMarkdown::
 getLink(const QString &ref, LinkRef &link) const
 {
   if (isDebug())
-    std::cerr << "DEBUG: Get Link: " << ref.toStdString() << std::endl;
+    std::cerr << "DEBUG: Get Link: " << ref.toStdString() << "\n";
 
   QString lref = ref.toLower();
 
@@ -108,14 +135,156 @@ readLine(QString &line)
 
 //------
 
+bool
+CMarkdown::
+isSingleLineType(CMarkdownTagType type)
+{
+  const CMarkdownTagData &data = CMarkdown::getTagData(type);
+
+  return data.singleLine;
+}
+
+bool
+CMarkdown::
+isRecurseType(CMarkdownTagType type)
+{
+  const CMarkdownTagData &data = CMarkdown::getTagData(type);
+
+  return data.recurse;
+}
+
+QString
+CMarkdown::
+typeColor(CMarkdownTagType type)
+{
+  const CMarkdownTagData &data = CMarkdown::getTagData(type);
+
+  return data.color;
+}
+
+void
+CMarkdown::
+setTypeColor(CMarkdownTagType type, const QString &color)
+{
+  CMarkdownTagData &data = CMarkdown::getTagData(type);
+
+  data.color = color;
+}
+
+QString
+CMarkdown::
+typeFont(CMarkdownTagType type)
+{
+  const CMarkdownTagData &data = CMarkdown::getTagData(type);
+
+  return data.font;
+}
+
+void
+CMarkdown::
+setTypeFont(CMarkdownTagType type, const QString &font)
+{
+  CMarkdownTagData &data = CMarkdown::getTagData(type);
+
+  data.font = font;
+}
+
+CMarkdownTagType
+CMarkdown::
+stringToType(const QString &str)
+{
+  QString lstr = str.toLower();
+
+  const TagDatas &tagDatas = CMarkdown::getTagDatas();
+
+  for (const auto &p : tagDatas) {
+    const CMarkdownTagData &tagData = p.second;
+
+    if (tagData.name == lstr)
+      return tagData.type;
+  }
+
+  return CMarkdownTagType::NONE;
+}
+
+QString
+CMarkdown::
+typeName(CMarkdownTagType type)
+{
+  const CMarkdownTagData &data = getTagData(type);
+
+  return data.name;
+}
+
+CMarkdownTagData &
+CMarkdown::
+getTagData(CMarkdownTagType type)
+{
+  TagDatas &tagDatas = getTagDatas();
+
+  auto p = tagDatas.find(type);
+  assert(p != tagDatas.end());
+
+  return (*p).second;
+}
+
+CMarkdown::TagDatas &
+CMarkdown::
+getTagDatas()
+{
+  static TagDatas tagDatas;
+
+  if (tagDatas.empty()) {
+    auto addTagData = [&](CMarkdownTagType type, const QString &typeName,
+                          bool singleLine, bool recurse) {
+      CMarkdownTagData data(type, typeName);
+
+      data.singleLine = singleLine;
+      data.recurse    = recurse;
+
+      tagDatas[type] = data;
+    };
+
+    //---
+
+    //         type,                         name,         singleLine, recurse
+    addTagData(CMarkdownTagType::DOCUMENT  , "document"  , false     , true );
+    addTagData(CMarkdownTagType::P         , "p"         , true      , false);
+    addTagData(CMarkdownTagType::BLOCKQUOTE, "blockquote", false     , true );
+    addTagData(CMarkdownTagType::H1        , "h1"        , true      , false);
+    addTagData(CMarkdownTagType::H2        , "h2"        , true      , false);
+    addTagData(CMarkdownTagType::H3        , "h3"        , true      , false);
+    addTagData(CMarkdownTagType::H4        , "h4"        , true      , false);
+    addTagData(CMarkdownTagType::H5        , "h5"        , true      , false);
+    addTagData(CMarkdownTagType::H6        , "h6"        , true      , false);
+    addTagData(CMarkdownTagType::UL        , "ul"        , false     , false);
+    addTagData(CMarkdownTagType::OL        , "ol"        , false     , false);
+    addTagData(CMarkdownTagType::LI        , "li"        , true      , true );
+    addTagData(CMarkdownTagType::PRE       , "pre"       , false     , true );
+    addTagData(CMarkdownTagType::CODE      , "code"      , false     , false);
+    addTagData(CMarkdownTagType::TABLE     , "table"     , false     , true );
+    addTagData(CMarkdownTagType::TR        , "tr"        , false     , false);
+    addTagData(CMarkdownTagType::TD        , "td"        , false     , false);
+    addTagData(CMarkdownTagType::HR        , "hr"        , true      , false);
+    addTagData(CMarkdownTagType::EM        , "em"        , false     , false);
+    addTagData(CMarkdownTagType::STRONG    , "strong"    , false     , false);
+    addTagData(CMarkdownTagType::STRIKE    , "strike"    , false     , false);
+    addTagData(CMarkdownTagType::A         , "a"         , false     , false);
+  }
+
+  return tagDatas;
+}
+
+//------
+
 CMarkdownBlock::
 CMarkdownBlock(CMarkdown *markdown) :
- markdown_(markdown), parent_(nullptr), type_(BlockType::DOCUMENT)
+ markdown_(markdown), parent_(nullptr), type_(CMarkdownTagType::DOCUMENT)
 {
 }
 
 CMarkdownBlock::
-CMarkdownBlock(CMarkdownBlock *parent, BlockType type) :
+CMarkdownBlock(CMarkdownBlock *parent, CMarkdownTagType type) :
  markdown_(nullptr), parent_(parent), type_(type)
 {
 }
@@ -174,28 +343,28 @@ preProcess()
 
 QString
 CMarkdownBlock::
-process()
+process(CMarkdown::Format format)
 {
-  if (! isRecurseType(type_) || processed_)
-    return html_;
+  if (! CMarkdown::isRecurseType(type_) || processed_)
+    return processedText_;
 
   currentLine_  = 0;
 
   rootBlock_    = this;
   currentBlock_ = rootBlock_;
 
-  html_ = processLines();
+  processedText_ = processLines(format);
 
   processed_ = true;
 
-  return html_;
+  return processedText_;
 }
 
 QString
 CMarkdownBlock::
-processLines()
+processLines(CMarkdown::Format format)
 {
-  QString html = "";
+  QString processedText = "";
 
   int       indent;
   QChar     c;
@@ -213,7 +382,7 @@ processLines()
       break;
 
     if (markdown()->isDebug())
-      std::cerr << "DEBUG: Line: '" << line1.line.toStdString() << "'" << std::endl;
+      std::cerr << "DEBUG: Line: '" << line1.line.toStdString() << "'\n";
 
     //---
 
@@ -225,9 +394,9 @@ processLines()
     else if (isStartCodeFence(line1.line, fence)) {
       flushBlocks();
 
-      CMarkdownBlock *block = startBlock(BlockType::PRE);
+      CMarkdownBlock *block = startBlock(CMarkdownTagType::PRE);
 
-      startBlock(BlockType::CODE);
+      startBlock(CMarkdownTagType::CODE);
 
       LineData line2;
 
@@ -241,21 +410,21 @@ processLines()
       endBlock();
       endBlock();
 
-      html += block->toHtml();
+      processedText += block->toText(format);
     }
     else if (CMarkdownParse::isRule(line1.line, istart, iend)) {
       endBlock();
 
-      CMarkdownBlock *block = startBlock(BlockType::HR);
+      CMarkdownBlock *block = startBlock(CMarkdownTagType::HR);
 
       endBlock();
 
-      html += block->toHtml();
+      processedText += block->toText(format);
     }
     else if (isHtmlLine(line1.line)) {
       flushBlocks();
 
-      html += line1.line + "\n";
+      processedText += line1.line + "\n";
 
       LineData line2;
 
@@ -263,10 +432,10 @@ processLines()
         if (CMarkdownParse::isBlankLine(line2.line))
           break;
 
-        html += line2.line + "\n";
+        processedText += line2.line + "\n";
       }
 
-      html += "\n";
+      processedText += "\n";
     }
     else if (CMarkdownParse::isLinkReference(line1.line, linkRef, istart, iend)) {
       endBlock();
@@ -277,7 +446,10 @@ processLines()
         QString ref1 = linkRef.dest.mid(1);
 
         // should match linkRef.ref ?
-        html += QString("<a name=\"%1\"></a>\n").arg(ref1);
+        if (format == CMarkdown::Format::HTML)
+          processedText += QString("<a name=\"%1\"></a>\n").arg(ref1);
+        else
+          processedText += ref1;
       }
 
       //markdown()->addLink(linkRef);
@@ -285,12 +457,12 @@ processLines()
     else if (isUnorderedListLine(line1.line, list)) {
       endBlock();
 
-      html += processList(BlockType::UL, list);
+      processedText += processList(CMarkdownTagType::UL, list, format);
     }
     else if (isOrderedListLine(line1.line, list)) {
       endBlock();
 
-      html += processList(BlockType::OL, list);
+      processedText += processList(CMarkdownTagType::OL, list, format);
     }
     else if (CMarkdownParse::isATXHeader(line1.line, atxData, istart, iend)) {
       endBlock();
@@ -301,14 +473,14 @@ processLines()
 
       endBlock();
 
-      html += block->toHtml();
+      processedText += block->toText(format);
     }
     else if (isIndentLine(line1.line, indent)) {
       flushBlocks();
 
-      CMarkdownBlock *block = startBlock(BlockType::PRE);
+      CMarkdownBlock *block = startBlock(CMarkdownTagType::PRE);
 
-      startBlock(BlockType::CODE);
+      startBlock(CMarkdownTagType::CODE);
 
       addBlockLine(line1.line.mid(indent));
 
@@ -328,10 +500,10 @@ processLines()
       endBlock();
       endBlock();
 
-      html += block->toHtml();
+      processedText += block->toText(format);
     }
     else if (isBlockQuote(line1.line, text)) {
-      CMarkdownBlock *block = startBlock(BlockType::BLOCKQUOTE);
+      CMarkdownBlock *block = startBlock(CMarkdownTagType::BLOCKQUOTE);
 
       addBlockLine(text);
 
@@ -354,10 +526,10 @@ processLines()
 
       endBlock();
 
-      html += block->toHtml();
+      processedText += block->toText(format);
     }
     else if (isTableLine(line1.line)) {
-      CMarkdownBlock *block = startBlock(BlockType::TABLE);
+      CMarkdownBlock *block = startBlock(CMarkdownTagType::TABLE);
 
       parseTableLine(line1.line);
 
@@ -374,12 +546,12 @@ processLines()
 
       endBlock();
 
-      html += block->toHtml();
+      processedText += block->toText(format);
     }
     else {
       endBlock();
 
-      CMarkdownBlock *block = startBlock(BlockType::P);
+      CMarkdownBlock *block = startBlock(CMarkdownTagType::P);
 
       addBlockLine(line1.line, line1.brk);
 
@@ -391,7 +563,7 @@ processLines()
         if (CMarkdownParse::isBlankLine(line2.line))
           break;
 
-        BlockType type;
+        CMarkdownTagType type;
 
         if      (nl == 0 && isSetTextLine(line2.line, type)) {
           endBlock(); // remove block
@@ -409,7 +581,7 @@ processLines()
 
           endBlock();
 
-          html += block->toHtml();
+          processedText += block->toText(format);
 
           nl = -1;
 
@@ -428,25 +600,25 @@ processLines()
       if (nl >= 0) {
         endBlock();
 
-        html += block->toHtml();
+        processedText += block->toText(format);
       }
     }
   }
 
   endBlock();
 
-  return html;
+  return processedText;
 }
 
 QString
 CMarkdownBlock::
-processList(BlockType type, const ListData &list)
+processList(CMarkdownTagType type, const ListData &list, CMarkdown::Format format)
 {
   QString res;
 
   CMarkdownBlock *block = startBlock(type);
 
-  startBlock(BlockType::LI);
+  startBlock(CMarkdownTagType::LI);
 
   addBlockLine(list.text);
 
@@ -458,12 +630,12 @@ processList(BlockType type, const ListData &list)
     ListData list1;
 
     if      (isUnorderedListLine(line2.line, list1)) {
-      if (type == BlockType::UL) {
+      if (type == CMarkdownTagType::UL) {
         if (numBlankLines > 0) {
           // add empty list item
           endBlock(); // LI
 
-          startBlock(BlockType::LI);
+          startBlock(CMarkdownTagType::LI);
         }
 
         if (list1.indent >= list.indent && list1.c == list.c) {
@@ -471,16 +643,16 @@ processList(BlockType type, const ListData &list)
           if (list1.indent >= list.indent + 2) {
             endBlock(); // LI
 
-            processList(BlockType::UL, list1);
+            processList(CMarkdownTagType::UL, list1, format);
 
-            startBlock(BlockType::LI);
+            startBlock(CMarkdownTagType::LI);
 
             numBlankLines = 0;
           }
           else {
             endBlock(); // LI
 
-            startBlock(BlockType::LI);
+            startBlock(CMarkdownTagType::LI);
 
             addBlockLine(list1.text);
           }
@@ -496,9 +668,9 @@ processList(BlockType type, const ListData &list)
         if (list1.indent >= list.indent) {
           endBlock(); // LI
 
-          processList(BlockType::UL, list1);
+          processList(CMarkdownTagType::UL, list1, format);
 
-          startBlock(BlockType::LI);
+          startBlock(CMarkdownTagType::LI);
 
           numBlankLines = 0;
         }
@@ -509,12 +681,12 @@ processList(BlockType type, const ListData &list)
       }
     }
     else if (isOrderedListLine(line2.line, list1)) {
-      if (type == BlockType::OL) {
+      if (type == CMarkdownTagType::OL) {
         if (numBlankLines > 0) {
           // add empty list item
           endBlock(); // LI
 
-          startBlock(BlockType::LI);
+          startBlock(CMarkdownTagType::LI);
         }
 
         if (list1.indent >= list.indent && list1.c == list.c) {
@@ -522,9 +694,9 @@ processList(BlockType type, const ListData &list)
           if (list1.indent >= list.indent + 2) {
             endBlock(); // LI
 
-            processList(BlockType::OL, list1);
+            processList(CMarkdownTagType::OL, list1, format);
 
-            startBlock(BlockType::LI);
+            startBlock(CMarkdownTagType::LI);
 
             numBlankLines = 0;
           }
@@ -532,7 +704,7 @@ processList(BlockType type, const ListData &list)
           else {
             endBlock(); // LI
 
-            startBlock(BlockType::LI);
+            startBlock(CMarkdownTagType::LI);
 
             addBlockLine(list1.text);
           }
@@ -548,9 +720,9 @@ processList(BlockType type, const ListData &list)
         if (list1.indent >= list.indent) {
           endBlock(); // LI
 
-          processList(BlockType::OL, list1);
+          processList(CMarkdownTagType::OL, list1, format);
 
-          startBlock(BlockType::LI);
+          startBlock(CMarkdownTagType::LI);
 
           numBlankLines = 0;
         }
@@ -587,7 +759,7 @@ processList(BlockType type, const ListData &list)
   endBlock(); // LI
   endBlock(); // UL, OL
 
-  res += block->toHtml();
+  res += block->toText(format);
 
   return res;
 }
@@ -606,7 +778,7 @@ isContinuationLine(const QString &str) const
 
 bool
 CMarkdownBlock::
-isSetTextLine(const QString &str, CMarkdownBlock::BlockType &type) const
+isSetTextLine(const QString &str, CMarkdownTagType &type) const
 {
   int i   = 0;
   int len = str.length();
@@ -629,7 +801,7 @@ isSetTextLine(const QString &str, CMarkdownBlock::BlockType &type) const
   if (i < len)
     return false;
 
-  type = (c == '=' ? CMarkdownBlock::BlockType::H1 : CMarkdownBlock::BlockType::H2);
+  type = (c == '=' ? CMarkdownTagType::H1 : CMarkdownTagType::H2);
 
   return true;
 }
@@ -778,7 +950,7 @@ bool
 CMarkdownBlock::
 isHtmlLine(const QString &str) const
 {
-  typedef std::set<QString> NameSet;
+  using NameSet = std::set<QString>;
 
   NameSet nameSet;
 
@@ -954,7 +1126,7 @@ parseTableLine(const QString &str)
 
   assert(i < len && str[i] == '|');
 
-  typedef std::vector<QString> Words;
+  using Words = std::vector<QString>;
 
   Words words;
 
@@ -977,10 +1149,10 @@ parseTableLine(const QString &str)
   if (words.empty())
     return;
 
-  startBlock(BlockType::TR);
+  startBlock(CMarkdownTagType::TR);
 
   for (const auto &word : words) {
-    startBlock(BlockType::TD);
+    startBlock(CMarkdownTagType::TD);
 
     addBlockLine(word);
 
@@ -992,7 +1164,7 @@ parseTableLine(const QString &str)
 
 QString
 CMarkdownBlock::
-replaceEmbeddedStyles(const QString &str, bool code) const
+replaceEmbeddedStyles(const QString &str, bool code, CMarkdown::Format format) const
 {
   QString str1;
 
@@ -1027,12 +1199,12 @@ replaceEmbeddedStyles(const QString &str, bool code) const
       int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 0) {
-        QString str3 = replaceEmbeddedStyles(str2);
+        QString str3 = replaceEmbeddedStyles(str2, /*code*/false, format);
 
         if (nc == 1)
-          str1 += QString("<em>%1</em>").arg(str3);
+          str1 += emphasisText(str3, format);
         else
-          str1 += QString("<strong>%1</strong>").arg(str3);
+          str1 += boldText(str3, format);
       }
       else {
         str1 += str[i++];
@@ -1046,9 +1218,9 @@ replaceEmbeddedStyles(const QString &str, bool code) const
       int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 1) {
-        QString str3 = replaceEmbeddedStyles(str2);
+        QString str3 = replaceEmbeddedStyles(str2, /*code*/false, format);
 
-        str1 += QString("<strike>%1</strike>").arg(str3);
+        str1 += strikeText(str3, format);
       }
       else {
         str1 += str[i++];
@@ -1063,9 +1235,12 @@ replaceEmbeddedStyles(const QString &str, bool code) const
       int nc = CMarkdownParse::parseSurroundText(str, i, str2, start2);
 
       if (nc > 0) {
-        QString str3 = replaceEmbeddedStyles(str2, /*code*/true);
+        QString str3 = replaceEmbeddedStyles(str2, /*code*/true, format);
 
-        str1 += QString("<code>%1</code>").arg(str3);
+        if (format == CMarkdown::Format::HTML)
+          str1 += QString("<code>%1</code>").arg(str3);
+        else
+          str1 += QString("%1").arg(str3);
       }
       else {
         str1 += str[i++];
@@ -1117,19 +1292,24 @@ replaceEmbeddedStyles(const QString &str, bool code) const
             str3 = str3.simplified();
 
             // TODO: title
-            if (str4 != "") {
-              if (str2 != "")
-                str1 += QString("<img src=\"%1\" title=\"%2\" alt=\"%3\"/>").
-                          arg(imageSrc(str3)).arg(str4).arg(str2);
-              else
-                str1 += QString("<img src=\"%1\" title=\"%2\"/>").
-                          arg(imageSrc(str3)).arg(str4);
+            if (format == CMarkdown::Format::HTML) {
+              if (str4 != "") {
+                if (str2 != "")
+                  str1 += QString("<img src=\"%1\" title=\"%2\" alt=\"%3\"/>").
+                            arg(imageSrc(str3)).arg(str4).arg(str2);
+                else
+                  str1 += QString("<img src=\"%1\" title=\"%2\"/>").
+                            arg(imageSrc(str3)).arg(str4);
+              }
+              else {
+                if (str2 != "")
+                  str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(imageSrc(str3)).arg(str2);
+                else
+                  str1 += QString("<img src=\"%1\"/>").arg(imageSrc(str3));
+              }
             }
             else {
-              if (str2 != "")
-                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(imageSrc(str3)).arg(str2);
-              else
-                str1 += QString("<img src=\"%1\"/>").arg(imageSrc(str3));
+              str1 += QString("%1").arg(imageSrc(str3));
             }
           }
           else {
@@ -1147,10 +1327,15 @@ replaceEmbeddedStyles(const QString &str, bool code) const
           if (i < len && str[i] == ']') {
             ++i;
 
-            if (str2 != "")
-              str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(imageSrc(str3)).arg(str2);
-            else
-              str1 += QString("<img src=\"%1\"/>").arg(imageSrc(str3));
+            if (format == CMarkdown::Format::HTML) {
+              if (str2 != "")
+                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").arg(imageSrc(str3)).arg(str2);
+              else
+                str1 += QString("<img src=\"%1\"/>").arg(imageSrc(str3));
+            }
+            else {
+              str1 += QString("%1").arg(imageSrc(str3));
+            }
           }
           else {
             i = i1;
@@ -1162,21 +1347,26 @@ replaceEmbeddedStyles(const QString &str, bool code) const
           LinkRef ref;
 
           if (markdown()->getLink(str2, ref)) {
-            if (ref.title != "") {
-              if (ref.ref != "")
-                str1 += QString("<img src=\"%1\" alt=\"%2\" title=\"%3\"/>").
-                         arg(imageSrc(ref.dest)).arg(ref.ref).arg(ref.title);
-              else
-                str1 += QString("<img src=\"%1\" title=\"%3\"/>").
-                         arg(imageSrc(ref.dest)).arg(ref.title);
+            if (format == CMarkdown::Format::HTML) {
+              if (ref.title != "") {
+                if (ref.ref != "")
+                  str1 += QString("<img src=\"%1\" alt=\"%2\" title=\"%3\"/>").
+                           arg(imageSrc(ref.dest)).arg(ref.ref).arg(ref.title);
+                else
+                  str1 += QString("<img src=\"%1\" title=\"%3\"/>").
+                           arg(imageSrc(ref.dest)).arg(ref.title);
+              }
+              else {
+                if (ref.ref != "")
+                  str1 += QString("<img src=\"%1\" alt=\"%2\"/>").
+                           arg(imageSrc(ref.dest)).arg(ref.ref);
+                else
+                  str1 += QString("<img src=\"%1\"/>").
+                           arg(imageSrc(ref.dest));
+              }
             }
             else {
-              if (ref.ref != "")
-                str1 += QString("<img src=\"%1\" alt=\"%2\"/>").
-                         arg(imageSrc(ref.dest)).arg(ref.ref);
-              else
-                str1 += QString("<img src=\"%1\"/>").
-                         arg(imageSrc(ref.dest));
+              str1 += QString("%1").arg(imageSrc(ref.dest));
             }
           }
           else {
@@ -1224,13 +1414,7 @@ replaceEmbeddedStyles(const QString &str, bool code) const
 
             splitLinkRef(str3, href, title);
 
-            if (title != "") {
-              str1 += QString("<a href=\"%1\" title=\"%2\">%3</a>").
-                        arg(href).arg(title).arg(str2);
-            }
-            else {
-              str1 += QString("<a href=\"%1\">%2</a>").arg(str3).arg(str2);
-            }
+            str1 += anchorText(href, title, str2, format);
           }
           else {
             i = i1;
@@ -1250,15 +1434,10 @@ replaceEmbeddedStyles(const QString &str, bool code) const
 
             LinkRef ref;
 
-            if (markdown()->getLink(str3, ref)) {
-              if (ref.title != "")
-                str1 += QString("<a href=\"%1\" title=\"%2\">%3</a>").
-                         arg(ref.dest).arg(ref.title).arg(str2);
-              else
-                str1 += QString("<a href=\"%1\">%2</a>").arg(ref.dest).arg(str2);
-            }
+            if (markdown()->getLink(str3, ref))
+              str1 += anchorText(ref.dest, ref.title, str2, format);
             else
-              str1 += QString("<a href=\"%1\">%2</a>").arg(str3).arg(str2);
+              str1 += anchorText(str3, "", str2, format);
           }
           else {
             i = i1;
@@ -1270,13 +1449,8 @@ replaceEmbeddedStyles(const QString &str, bool code) const
         else {
           LinkRef ref;
 
-          if (markdown()->getLink(str2, ref)) {
-            if (ref.title != "")
-              str1 += QString("<a href=\"%1\" title=\"%2\">%3</a>").
-                       arg(ref.dest).arg(ref.title).arg(ref.ref);
-            else
-              str1 += QString("<a href=\"%1\">%2</a>").arg(ref.dest).arg(ref.ref);
-          }
+          if (markdown()->getLink(str2, ref))
+            str1 += anchorText(ref.dest, ref.title, ref.ref, format);
           else {
             i = i1;
 
@@ -1297,9 +1471,9 @@ replaceEmbeddedStyles(const QString &str, bool code) const
       QString ref;
 
       if (isAutoLink(str, i, ref)) {
-        QString ref1 = replaceEmbeddedStyles(ref);
+        QString ref1 = replaceEmbeddedStyles(ref, /*code*/false, format);
 
-        str1 += QString("<a href=\"%1\">%2</a>").arg(ref).arg(ref1);
+        str1 += anchorText(ref, "", ref1, format);
       }
       else {
         str1 += "&lt;"; ++i;
@@ -1507,7 +1681,7 @@ ungetLine()
 
 CMarkdownBlock *
 CMarkdownBlock::
-startBlock(BlockType type)
+startBlock(CMarkdownTagType type)
 {
   CMarkdownBlock *block = new CMarkdownBlock(currentBlock_, type);
 
@@ -1516,7 +1690,7 @@ startBlock(BlockType type)
   currentBlock_ = block;
 
   if (markdown()->isDebug())
-    std::cerr << "DEBUG: startBlock " << tagName(type).toStdString() << std::endl;
+    std::cerr << "DEBUG: startBlock " << CMarkdown::typeName(type).toStdString() << "\n";
 
   return block;
 }
@@ -1526,7 +1700,7 @@ CMarkdownBlock::
 addBlockLine(const QString &line, bool brk)
 {
   if (markdown()->isDebug())
-    std::cerr << "DEBUG: add: " << line.toStdString() << std::endl;
+    std::cerr << "DEBUG: add: " << line.toStdString() << "\n";
 
   currentBlock_->addLine(Line(line, brk));
 }
@@ -1536,7 +1710,7 @@ CMarkdownBlock::
 appendBlockLine(const QString &line)
 {
   if (markdown()->isDebug())
-    std::cerr << "DEBUG: append: " << line.toStdString() << std::endl;
+    std::cerr << "DEBUG: append: " << line.toStdString() << "\n";
 
   currentBlock_->appendLine(line);
 }
@@ -1557,8 +1731,8 @@ endBlock()
     return nullptr;
 
   if (markdown()->isDebug())
-    std::cerr << "DEBUG: endBlock " << tagName(currentBlock_->blockType()).toStdString() <<
-                 std::endl;
+    std::cerr << "DEBUG: endBlock " <<
+      CMarkdown::typeName(currentBlock_->blockType()).toStdString() << "\n";
 
   currentBlock_ = currentBlock_->parent();
 
@@ -1569,18 +1743,18 @@ void
 CMarkdownBlock::
 print(int depth) const
 {
-  QString tag = tagName(type_);
+  QString tag = CMarkdown::typeName(type_);
 
   for (int i = 0; i < depth; ++i)
     std::cout << "  ";
 
-  std::cout << QString("-> %1").arg(tag).toStdString() << std::endl;
+  std::cout << QString("-> %1").arg(tag).toStdString() << "\n";
 
   for (auto &l : lines_) {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";
 
-    std::cout << "  \"" << l.line.toStdString() << "\"" << std::endl;
+    std::cout << "  \"" << l.line.toStdString() << "\"\n";
   }
 
   for (auto &b : blocks_)
@@ -1589,19 +1763,17 @@ print(int depth) const
 
 QString
 CMarkdownBlock::
-toHtml() const
+toText(CMarkdown::Format format) const
 {
   CMarkdownBlock *th = const_cast<CMarkdownBlock *>(this);
 
-  th->process();
+  th->process(format);
 
   //---
 
-  QString html;
+  QString text;
 
-  QString tag = tagName(type_);
-
-  bool single = isSingleLineType(type_);
+  bool single = CMarkdown::isSingleLineType(type_);
 
   bool empty = false;
 
@@ -1613,13 +1785,13 @@ toHtml() const
   }
 
   if (empty) {
-    html += QString("<%1/>\n").arg(tag);
+    text += fullTag(type_, format) + "\n";
   }
   else {
-    if (single)
-      html += QString("<%1>").arg(tag);
-    else
-      html += QString("<%1>\n").arg(tag);
+    text += startTag(type_, format);
+
+    if (! single)
+      text += "\n";
 
     if (! processed_) {
       int  nl  = 0;
@@ -1642,91 +1814,206 @@ toHtml() const
         ++nl;
       }
 
-      if (type_ !=  BlockType::CODE)
-        line1 = replaceEmbeddedStyles(line1);
+      if (type_ !=  CMarkdownTagType::CODE)
+        line1 = replaceEmbeddedStyles(line1, /*code*/false, format);
 
       QString line2;
 
       for (int i = 0; i < line1.size(); ++i) {
-        if (line1[i] == '\t')
-          line2 += "<br>\n";
+        if (line1[i] == '\t') {
+          if (format == CMarkdown::Format::HTML)
+            line2 += "<br>\n";
+          else
+            line2 += "\n";
+        }
         else
           line2 += line1[i];
       }
 
-      html += line2;
+      text += line2;
     }
 
     int nb = 0;
 
     for (auto &b : blocks_) {
-      html += b->toHtml();
+      text += b->toText(format);
 
       ++nb;
     }
 
-    if (single)
-      html += QString("</%1>\n").arg(tag);
-    else
-      html += QString("</%1>\n").arg(tag);
+    text += endTag(type_, format) + "\n";
   }
 
-  return html;
+  return text;
 }
 
 QString
 CMarkdownBlock::
-tagName(BlockType type)
+anchorText(const QString &ref, const QString &title, const QString &str,
+           CMarkdown::Format format) const
 {
-  if      (type == BlockType::DOCUMENT  ) return "document";
-  else if (type == BlockType::P         ) return "p";
-  else if (type == BlockType::BLOCKQUOTE) return "blockquote";
-  else if (type == BlockType::H1        ) return "h1";
-  else if (type == BlockType::H2        ) return "h2";
-  else if (type == BlockType::H3        ) return "h3";
-  else if (type == BlockType::H4        ) return "h4";
-  else if (type == BlockType::H5        ) return "h5";
-  else if (type == BlockType::H6        ) return "h6";
-  else if (type == BlockType::UL        ) return "ul";
-  else if (type == BlockType::OL        ) return "ol";
-  else if (type == BlockType::LI        ) return "li";
-  else if (type == BlockType::PRE       ) return "pre";
-  else if (type == BlockType::CODE      ) return "code";
-  else if (type == BlockType::TABLE     ) return "table";
-  else if (type == BlockType::TR        ) return "tr";
-  else if (type == BlockType::TD        ) return "td";
-  else if (type == BlockType::HR        ) return "hr";
-  else                                    return "??";
+  QString text;
+
+  if (format == CMarkdown::Format::HTML) {
+    text = QString("<a href=\"%1\"").arg(ref);
+
+    if (title != "")
+      text += QString(" title=\"%1\"").arg(title);
+
+    text += htmlStyle(CMarkdownTagType::A);
+
+    text += QString(">%1</a>").arg(str);
+  }
+  else {
+    text = QString("%1%2%3").
+      arg(ttyStartStyle(CMarkdownTagType::A)).arg(str).arg(ttyEndStyle(CMarkdownTagType::A));
+  }
+
+  return text;
 }
 
-bool
+QString
 CMarkdownBlock::
-isSingleLineType(BlockType type)
+emphasisText(const QString &str, CMarkdown::Format format) const
 {
-  if      (type == BlockType::H1) return true;
-  else if (type == BlockType::H2) return true;
-  else if (type == BlockType::H3) return true;
-  else if (type == BlockType::H4) return true;
-  else if (type == BlockType::H5) return true;
-  else if (type == BlockType::H6) return true;
-  else if (type == BlockType::LI) return true;
-  else if (type == BlockType::HR) return true;
-  else if (type == BlockType::P ) return true;
+  QString text;
 
-  return false;
+  if (format == CMarkdown::Format::HTML)
+    text = QString("<em%1>%2</em>").arg(htmlStyle(CMarkdownTagType::EM)).arg(str);
+  else
+    text = QString("[3m%1%2[0m").arg(ttyStartStyle(CMarkdownTagType::EM)).arg(str);
+
+  return text;
 }
 
-bool
+QString
 CMarkdownBlock::
-isRecurseType(BlockType type)
+boldText(const QString &str, CMarkdown::Format format) const
 {
-  if      (type == BlockType::DOCUMENT  ) return true;
-  else if (type == BlockType::BLOCKQUOTE) return true;
-  else if (type == BlockType::LI        ) return true;
-  else if (type == BlockType::PRE       ) return true;
-  else if (type == BlockType::TABLE     ) return true;
+  QString text;
 
-  return false;
+  if (format == CMarkdown::Format::HTML)
+    text = QString("<strong%1>%2</strong>").arg(htmlStyle(CMarkdownTagType::STRONG)).arg(str);
+  else
+    text = QString("[1m%1%2[0m").arg(ttyStartStyle(CMarkdownTagType::STRONG)).arg(str);
+
+  return text;
+}
+
+QString
+CMarkdownBlock::
+strikeText(const QString &str, CMarkdown::Format format) const
+{
+  QString text;
+
+  if (format == CMarkdown::Format::HTML)
+    text = QString("<strike%1>%2</strike>").arg(htmlStyle(CMarkdownTagType::STRIKE)).arg(str);
+  else
+    text += QString("[9m%1%2[0m").arg(ttyStartStyle(CMarkdownTagType::STRIKE)).arg(str);
+
+  return text;
+}
+
+QString
+CMarkdownBlock::
+startTag(CMarkdownTagType type, CMarkdown::Format format) const
+{
+  QString text;
+
+  if (format == CMarkdown::Format::HTML) {
+    text = QString("<%1").arg(CMarkdown::typeName(type));
+
+    text += htmlStyle(type);
+
+    text += ">";
+
+    return text;
+  }
+  else {
+    return ttyStartStyle(type);
+  }
+}
+
+QString
+CMarkdownBlock::
+endTag(CMarkdownTagType type, CMarkdown::Format format) const
+{
+  if (format == CMarkdown::Format::HTML)
+    return QString("</%1>").arg(CMarkdown::typeName(type));
+  else
+    return ttyEndStyle(type);
+}
+
+QString
+CMarkdownBlock::
+fullTag(CMarkdownTagType type, CMarkdown::Format format) const
+{
+  if (format == CMarkdown::Format::HTML)
+    return QString("<%1/>").arg(CMarkdown::typeName(type));
+  else
+    return "";
+}
+
+QString
+CMarkdownBlock::
+htmlStyle(CMarkdownTagType type) const
+{
+  QString color = CMarkdown::typeColor(type);
+  QString font  = CMarkdown::typeFont (type);
+
+  if (color == "" && font == "")
+    return "";
+
+  QString text = " style=\"";
+
+  if (color != "")
+    text += QString("color:%1;").arg(color);
+
+  if (font != "") {
+    QStringList fontParts = font.split(":");
+
+    if      (fontParts.size() == 1)
+      text += QString("font-family:%1").arg(fontParts[0]);
+    else if (fontParts.size() == 2)
+      text += QString("font-family:%1;font-size:%2;").arg(fontParts[0]).arg(fontParts[1]);
+    else if (fontParts.size() == 3)
+      text += QString("font-family:%1;font-size:%2;font-style:%3").
+                arg(fontParts[0]).arg(fontParts[1]).arg(fontParts[2]);
+  }
+
+  text += "\"";
+
+  return text;
+}
+
+QString
+CMarkdownBlock::
+ttyStartStyle(CMarkdownTagType type) const
+{
+  QString color = CMarkdown::typeColor(type);
+
+  if      (color == "black"  ) return "[30m";
+  else if (color == "red"    ) return "[31m";
+  else if (color == "green"  ) return "[32m";
+  else if (color == "yellow" ) return "[33m";
+  else if (color == "blue"   ) return "[34m";
+  else if (color == "magenta") return "[35m";
+  else if (color == "cyan"   ) return "[36m";
+  else if (color == "white"  ) return "[37m";
+
+  return "";
+}
+
+QString
+CMarkdownBlock::
+ttyEndStyle(CMarkdownTagType type) const
+{
+  QString color = CMarkdown::typeColor(type);
+
+  if (color != "")
+    return "[0m";
+
+  return "";
 }
 
 //------
@@ -1757,12 +2044,12 @@ isATXHeader(const QString &str, CMarkdownBlock::ATXData &atxData, int &istart, i
     return false;
 
   // get header type
-  if      (nh == 1) atxData.type = CMarkdownBlock::BlockType::H1;
-  else if (nh == 2) atxData.type = CMarkdownBlock::BlockType::H2;
-  else if (nh == 3) atxData.type = CMarkdownBlock::BlockType::H3;
-  else if (nh == 4) atxData.type = CMarkdownBlock::BlockType::H4;
-  else if (nh == 5) atxData.type = CMarkdownBlock::BlockType::H5;
-  else if (nh == 6) atxData.type = CMarkdownBlock::BlockType::H6;
+  if      (nh == 1) atxData.type = CMarkdownTagType::H1;
+  else if (nh == 2) atxData.type = CMarkdownTagType::H2;
+  else if (nh == 3) atxData.type = CMarkdownTagType::H3;
+  else if (nh == 4) atxData.type = CMarkdownTagType::H4;
+  else if (nh == 5) atxData.type = CMarkdownTagType::H5;
+  else if (nh == 6) atxData.type = CMarkdownTagType::H6;
 
   // skip spaces after '#'
   CMarkdownParse::skipSpace(str, i);
@@ -2074,4 +2361,3 @@ backSkipChar(const QString &str, int &i, const QChar &c)
 
   return n;
 }
-
