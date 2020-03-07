@@ -367,7 +367,6 @@ processLines(CMarkdown::Format format)
   QString processedText = "";
 
   int       indent;
-  QChar     c;
   ATXData   atxData;
   LinkRef   linkRef;
   QString   text;
