@@ -56,6 +56,8 @@ class CQMarkdownEditSyntaxHighlight : public QSyntaxHighlighter {
    QSyntaxHighlighter(text->document()), text_(text) {
   }
 
+  CQMarkdownEditText *text() const { return text_; }
+
   void highlightBlock(const QString &str) {
     CMarkdownBlock::ATXData atxData;
     CMarkdown::LinkRef      linkRef;
