@@ -22,7 +22,7 @@ class CQMarkdownPreview : public QTabWidget {
 
   void updateText();
 
-  QSize sizeHint() const;
+  QSize sizeHint() const override;
 
  private:
   CQMarkdown *markdown_;

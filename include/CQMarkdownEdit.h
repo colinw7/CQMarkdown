@@ -23,7 +23,7 @@ class CQMarkdownEdit : public QFrame {
   QString text() const;
   void setText(const QString &text);
 
-  QSize sizeHint() const;
+  QSize sizeHint() const override;
 
  public slots:
   void normalSlot();
@@ -91,7 +91,7 @@ class CQMarkdownEditText : public QTextEdit {
  public:
   CQMarkdownEditText(CQMarkdownEdit *edit);
 
-  void keyPressEvent(QKeyEvent *e);
+  void keyPressEvent(QKeyEvent *e) override;
 
  private:
   CQMarkdownEdit                *edit_        { nullptr };
