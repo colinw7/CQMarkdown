@@ -47,12 +47,12 @@ main(int argc, char **argv)
       else if (arg == "color") {
         QString colorStr = argv[++i];
 
-        QStringList colorStrs = colorStr.split(";", QString::KeepEmptyParts);
+        QStringList colorStrs = colorStr.split(";", Qt::KeepEmptyParts);
 
         for (int j = 0; j < colorStrs.length(); ++j) {
           const QString colorStr1 = colorStrs[j];
 
-          QStringList colorStrs1 = colorStr1.split("=", QString::KeepEmptyParts);
+          QStringList colorStrs1 = colorStr1.split("=", Qt::KeepEmptyParts);
 
           if (colorStrs1.size() == 2) {
             CMarkdownTagType type = CMarkdown::stringToType(colorStrs1[0]);
@@ -70,12 +70,12 @@ main(int argc, char **argv)
       else if (arg == "font") {
         QString fontStr = argv[++i];
 
-        QStringList fontStrs = fontStr.split(";", QString::KeepEmptyParts);
+        QStringList fontStrs = fontStr.split(";", Qt::KeepEmptyParts);
 
         for (int j = 0; j < fontStrs.length(); ++j) {
           const QString fontStr1 = fontStrs[j];
 
-          QStringList fontStrs1 = fontStr1.split("=", QString::KeepEmptyParts);
+          QStringList fontStrs1 = fontStr1.split("=", Qt::KeepEmptyParts);
 
           if (fontStrs1.size() == 2) {
             CMarkdownTagType type = CMarkdown::stringToType(fontStrs1[0]);
