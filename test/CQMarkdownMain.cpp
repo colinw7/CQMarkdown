@@ -14,7 +14,7 @@ CQMarkdownMain(bool ref) :
 {
   setObjectName("main");
 
-  markdown_ = new CQMarkdown(0, ref);
+  markdown_ = new CQMarkdown(nullptr, ref);
 
   setCentralWidget(markdown_);
 
